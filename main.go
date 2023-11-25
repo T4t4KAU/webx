@@ -6,17 +6,23 @@ import (
 	"github.com/cloudwego/hertz/pkg/app/server"
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
 	"webx/dal"
+	"webx/mw/auth"
 	"webx/web"
 )
 
 func main() {
 	dal.Init()
+	auth.Init()
+
 	router := server.New(
 		server.WithHostPorts("0.0.0.0:8080"),
 		server.WithHandleMethodNotAllowed(true),
 	)
 
-	router.POST("/user/register", web.UserRegister)
+	userRouter := router.Group("/user")
+	userRouter.POST("/register", web.UserRegister)
+	userRouter.POST("/login", auth.UserLogin)
+
 	router.NoRoute(func(ctx context.Context, c *app.RequestContext) {
 		c.String(consts.StatusOK, "no route")
 	})

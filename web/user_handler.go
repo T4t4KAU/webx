@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/cloudwego/hertz/pkg/app"
 	"net/http"
+	"webx/mw/auth"
 	"webx/service"
 )
 
@@ -20,5 +21,8 @@ func UserRegister(ctx context.Context, c *app.RequestContext) {
 		c.String(http.StatusInternalServerError, "system error")
 		return
 	}
+
+	auth.UserLogin(ctx, c)
+
 	c.String(http.StatusOK, "register ok")
 }

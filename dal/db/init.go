@@ -4,14 +4,14 @@ import (
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	gormopentracing "gorm.io/plugin/opentracing"
-	"webx/pkg/consts"
+	"webx/pkg/constants"
 )
 
 var dao *gorm.DB
 
 func Init() {
 	var err error
-	dao, err = gorm.Open(mysql.Open(consts.MySQLDSN),
+	dao, err = gorm.Open(mysql.Open(constants.MySQLDSN),
 		&gorm.Config{
 			PrepareStmt:            true,
 			SkipDefaultTransaction: true,

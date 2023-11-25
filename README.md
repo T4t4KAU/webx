@@ -8,6 +8,8 @@
 2. 使用的框架：Hertz、Kitex、Gorm
 3. 附带完整的代码实现
 
+仓库地址：https://github.com/T4t4KAU/webx
+
 ## 快速起步
 
 Hertz是字节跳动研发的HTTP框架，具有高易用、高性能和高扩展性等特点
@@ -239,6 +241,189 @@ func main() {
 
 ```shell
 curl --location --request POST 'http://127.0.0.1:8080/user/register' \
+--header 'User-Agent: Apifox/1.0.0 (https://apifox.com)' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "username":"test",
+    "password":"123456"
+}'
+```
+
+### 用户鉴权
+
+下面就要实现登录功能了，这里牵涉到一个登录鉴权问题，也就是如何验证用户身份，确保只有经过身份验证的用户可以访问受限资源或执行特定操作。有两种很常见的实现，一个是session一个是jwt，这里使用jwt。
+
+使用JWT进行鉴权一般流程如下：
+
+1. 用户登录：用户提供凭证进行登录，服务器验证凭证成功后，生成JWT。
+2. 令牌传递：服务器将JWT返回给客户端，客户端将其保存在本地。
+3. 请求授权：客户端在后续的请求中，将JWT作为Bearer令牌放在请求的`Authorization`头部中。
+4. 服务器验证：服务器在接收到请求时，从`Authorization`头部中提取JWT，并进行验证。验证包括检查令牌的有效性、签名是否正确以及令牌是否过期等。
+5. 授权访问：如果JWT验证通过，服务器可以使用令牌中的信息来授权用户访问特定的资源或执行特定的操作。
+
+下面完善jwt鉴权功能，首先在数据层补充一个函数：
+
+```go
+func VerifyUser(username string, password string) (int64, error) {
+	var user User
+	err := dao.Where("username = ? AND password = ?", username, password).Find(&user).Error
+	if err != nil {
+		return 0, err
+	}
+	if user.Id == 0 {
+		return user.Id, errno.PasswordIsNotVerified
+	}
+	return user.Id, nil
+}
+```
+
+该函数接收用户名和密码作为参数，用于校验用户名和密码的正确性
+
+在Hertz中可以在Middleware中初始化JWT组件：
+
+```go
+var (
+	once *jwt.HertzJWTMiddleware
+)
+
+func Init() {
+	// 创建jwt middleware
+	once, _ = jwt.New(&jwt.HertzJWTMiddleware{
+		Key:     []byte(constants.SecretKey),
+		Timeout: time.Hour * 24,
+		PayloadFunc: func(data interface{}) jwt.MapClaims {
+			if v, ok := data.(int64); ok {
+				return jwt.MapClaims{
+					constants.IdentityKey: v,
+				}
+			}
+			return jwt.MapClaims{}
+		},
+		HTTPStatusMessageFunc: func(e error, ctx context.Context, c *app.RequestContext) string {
+			var errNo errno.ErrNo
+			switch {
+			case errors.As(e, &errNo):
+				return e.(errno.ErrNo).ErrMsg
+			default:
+				return e.Error()
+			}
+		},
+		LoginResponse: func(ctx context.Context, c *app.RequestContext, code int, token string, expire time.Time) {
+			c.JSON(consts.StatusOK, map[string]interface{}{
+				"status_code": errno.SuccessCode,
+				"status_msg":  errno.SuccessMsg,
+				"token":       token,
+			})
+		},
+		Unauthorized: func(ctx context.Context, c *app.RequestContext, code int, message string) {
+			c.JSON(code, map[string]interface{}{
+				"status_code": errno.AuthorizationFailedErrCode,
+				"status_msg":  message,
+			})
+		},
+		Authenticator: func(ctx context.Context, c *app.RequestContext) (interface{}, error) {
+			type LoginParam struct {
+				Username string
+				Password string
+			}
+
+			var param LoginParam
+			if err := c.BindAndValidate(&param); err != nil {
+				return nil, err
+			}
+			uid, err := db.VerifyUser(param.Username, param.Password)
+			if uid == 0 {
+				err = errno.PasswordIsNotVerified
+				return nil, err
+			}
+			if err != nil {
+				return nil, err
+			}
+			c.Set("user_id", uid)
+
+			return uid, nil
+		},
+		Authorizator: func(data interface{}, ctx context.Context, c *app.RequestContext) bool {
+			if v, ok := data.(float64); ok {
+				currentUserId := int64(v)
+				c.Set("current_user_id", currentUserId)
+				hlog.CtxInfof(ctx, "Token is verified clientIP: "+c.ClientIP())
+				return true
+			}
+			return false
+		},
+		IdentityKey:   constants.IdentityKey,
+		TokenLookup:   "header: Authorization, query: token, cookie: jwt, form: token",
+		TokenHeadName: "Bearer",
+		TimeFunc:      time.Now,
+	})
+}
+
+func UserLoginHandler(ctx context.Context, c *app.RequestContext) {
+	once.LoginHandler(ctx, c)
+}
+
+func MiddlewareFunc() app.HandlerFunc {
+	return once.MiddlewareFunc()
+}
+```
+
+接下来应用鉴权函数
+
+路由部分：
+
+```go
+func main() {
+	dal.Init()
+	auth.Init()
+
+	router := server.New(
+		server.WithHostPorts("0.0.0.0:8080"),
+		server.WithHandleMethodNotAllowed(true),
+	)
+
+	userRouter := router.Group("/user")
+	userRouter.POST("/register", web.UserRegister)
+	userRouter.POST("/login", auth.UserLogin)
+
+	router.NoRoute(func(ctx context.Context, c *app.RequestContext) {
+		c.String(consts.StatusOK, "no route")
+	})
+	router.NoMethod(func(ctx context.Context, c *app.RequestContext) {
+		c.String(consts.StatusOK, "no method")
+	})
+
+	router.Spin()
+}
+```
+
+注册部分：
+
+```go
+func UserRegister(ctx context.Context, c *app.RequestContext) {
+	var req service.UserRegisterRequest
+
+	if err := c.Bind(&req); err != nil {
+		c.String(http.StatusInternalServerError, "system error")
+		return
+	}
+
+	_, err := service.NewUserService(ctx, c).Register(&req)
+	if err != nil {
+		c.String(http.StatusInternalServerError, "system error")
+		return
+	}
+
+	auth.UserLogin(ctx, c)
+
+	c.String(http.StatusOK, "register ok")
+}
+```
+
+启动后，使用如下指令即可访问服务，并获得token：
+
+```shell
+curl --location --request POST 'http://127.0.0.1:8080/user/login' \
 --header 'User-Agent: Apifox/1.0.0 (https://apifox.com)' \
 --header 'Content-Type: application/json' \
 --data-raw '{
