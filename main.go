@@ -22,6 +22,8 @@ func main() {
 	userRouter := router.Group("/user")
 	userRouter.POST("/register", web.UserRegister)
 	userRouter.POST("/login", auth.UserLogin)
+	userRouter.GET("/profile", auth.MiddlewareFunc(), web.UserProfile)
+	userRouter.POST("/edit", auth.MiddlewareFunc(), web.UserEdit)
 
 	router.NoRoute(func(ctx context.Context, c *app.RequestContext) {
 		c.String(consts.StatusOK, "no route")

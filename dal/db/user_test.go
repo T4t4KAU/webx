@@ -9,7 +9,7 @@ import (
 func TestCreateUser(t *testing.T) {
 	Init()
 	user := &User{
-		Username: "test",
+		Username: "test1",
 		Password: "123456",
 	}
 

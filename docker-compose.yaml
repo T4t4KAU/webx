@@ -12,3 +12,14 @@ services:
       - ./script/mysql/:/docker-entrypoint-initdb.d/
     ports:
       - "13306:3306"
+
+  redis:
+    image: redis:latest
+    container_name: redis
+    ports:
+      - "16379:6379"
+    volumes:
+      - ./script/redis/redis.conf:/usr/local/etc/redis/redis.conf
+      - ./pkg/data/redis/:/data
+    command: redis-server /usr/local/etc/redis/redis.conf
+    restart: always

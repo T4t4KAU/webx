@@ -5,3 +5,8 @@ var (
 	SecretKey   = "webx"
 	IdentityKey = "user_id"
 )
+
+var (
+	RedisAddr     = "127.0.0.1"
+	RedisPassword = ""
+)

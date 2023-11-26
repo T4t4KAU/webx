@@ -62,7 +62,7 @@ func Init() {
 			if err := c.BindAndValidate(&param); err != nil {
 				return nil, err
 			}
-			uid, err := db.VerifyUser(param.Username, param.Password)
+			uid, err := db.VerifyUser(ctx, param.Username, param.Password)
 			if uid == 0 {
 				err = errno.PasswordIsNotVerified
 				return nil, err
