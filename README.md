@@ -322,15 +322,8 @@ curl --location --request POST 'http://127.0.0.1:8080/user/register' \
 
 ```go
 func VerifyUser(username string, password string) (int64, error) {
-	var user User
-	err := dao.Where("username = ? AND password = ?", username, password).Find(&user).Error
-	if err != nil {
-		return 0, err
-	}
-	if user.Id == 0 {
-		return user.Id, errno.PasswordIsNotVerified
-	}
-	return user.Id, nil
+	// 验证密码正确性
+    // ......
 }
 ```
 
@@ -584,15 +577,93 @@ hz new -module github.com/T4t4KAU/webx -idl idl/user.thrift
 go mod tidy
 ```
 
-即可完成代码生成，下面基于该框架重新编写上述代码
+即可完成代码生成，下面基于该框架重新编写上述代码，注意最好原先目录下只有idl目录，没有其他目录
 
-## 领域驱动
+生成完上述代码后还可以生成数据库操作相关的代码，首先安装相关依赖：
 
-领域驱动设计，简称为DDD，与上述传统的MVC架构有一些不同之处，显然DDD更要强调将业务置于中心，通过深入理解业务需求和与领域专家的合作，将业务规则和业务逻辑转化为可执行的领域模型。
+```powershell
+go get -u gorm.io/gen  
+```
 
-DDD有助于更好地理解和满足业务需求，提供更加贴合业务的解决方案。通过将领域模型划分为聚合根、实体、值对象等组件，将业务逻辑封装在领域对象中，实现了模块化和解耦。这使得系统更加灵活、可维护和可扩展，不会受到底层技术和外部因素的影响。
+建立在项目目录下cmd/gen/generate.go:
 
+```go
+package main
 
+func connectDB(dsn string) *gorm.DB {
+	db, err := gorm.Open(mysql.Open(dsn))
+	if err != nil {
+		panic(fmt.Errorf("connect db fail: %w", err))
+	}
+	return db
+}
+
+func main() {
+	g := gen.NewGenerator(gen.Config{
+		OutPath: "../../dal/query",
+		Mode:    gen.WithDefaultQuery | gen.WithQueryInterface,
+	})
+
+	g.UseDB(connectDB(constant.MySQLDSN))
+	g.ApplyBasic(g.GenerateAllTable()...)
+
+	// 执行并生成代码
+	g.Execute()
+}
+```
+
+在该目录下执行：
+
+```powershell
+go run generate.go
+```
+
+会在项目目录下生成dal目录，其中包含了生成的代码
+
+目前总体的目录如下所示：
+
+```powershell
+.
+├── README.md
+├── biz
+│   ├── handler
+│   │   ├── ping.go
+│   │   └── user
+│   │       └── user_service.go
+│   ├── model
+│   │   ├── common
+│   │   │   └── common.go
+│   │   └── user
+│   │       └── user.go
+│   └── router
+│       ├── register.go
+│       └── user
+│           ├── middleware.go
+│           └── user.go
+├── build.sh
+├── cmd
+│   └── gen
+│       └── generate.go
+├── dal
+│   ├── model
+│   │   └── tb_user.gen.go
+│   └── query
+│       ├── gen.go
+│       └── tb_user.gen.go
+├── go.mod
+├── go.sum
+├── idl
+│   ├── common.thrift
+│   └── user.thrift
+├── main.go
+├── pkg
+│   └── constant
+│       └── constant.go
+├── router.go
+├── router_gen.go
+└── script
+    └── bootstrap.sh
+```
 
 ## 缓存机制
 
@@ -677,11 +748,11 @@ wrk -t1 -d1s -c2 -s ./script/wrk/register.lua http://127.0.0.1:8080/user/login
 
 ```go
 Running 1s test @ http://127.0.0.1:8080/user/login
-  1 threads and 2 connections
-  Thread Stats   Avg      Stdev     Max   +/- Stdev
-    Latency     1.56ms  489.54us   6.83ms   85.20%
-    Req/Sec     1.30k   189.28     1.54k    81.82%
-  1419 requests in 1.10s, 472.54KB read
+1 threads and 2 connections
+Thread Stats   Avg      Stdev     Max   +/- Stdev
+Latency     1.56ms  489.54us   6.83ms   85.20%
+Req/Sec     1.30k   189.28     1.54k    81.82%
+1419 requests in 1.10s, 472.54KB read
 Requests/sec:   1289.62
 Transfer/sec:    429.45KB
 ```
