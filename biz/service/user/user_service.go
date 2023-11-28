@@ -6,6 +6,7 @@ import (
 	"github.com/T4t4KAU/webx/biz/dal/model"
 	"github.com/T4t4KAU/webx/biz/model/common"
 	"github.com/T4t4KAU/webx/biz/model/user"
+	"github.com/T4t4KAU/webx/mw/cache"
 	"github.com/T4t4KAU/webx/mw/errno"
 	"github.com/cloudwego/hertz/pkg/app"
 	"golang.org/x/crypto/bcrypt"
@@ -59,16 +60,28 @@ func (svc *UserService) Edit(req *user.UserEditReq) error {
 }
 
 func (svc *UserService) Profile(req *user.UserProfileReq) (common.User, error) {
-	u, err := dal.QueryUserById(svc.ctx, req.UserID)
+	data, err := cache.GetUserById(svc.ctx, req.UserID)
+	if err == nil {
+		return data, err
+	}
 
+	u, err := dal.QueryUserById(svc.ctx, req.UserID)
 	if u == (model.User{}) {
 		return common.User{}, errno.UserIsNotExistErr
 	}
 	if err != nil {
 		return common.User{}, err
 	}
-	return common.User{
+
+	res := common.User{
+		Name:      u.Username,
 		Email:     u.Email,
 		Signature: u.Signature,
-	}, nil
+	}
+
+	go func(ctx context.Context) {
+		_ = cache.SetUserById(ctx, req.UserID, res)
+	}(svc.ctx)
+
+	return res, nil
 }

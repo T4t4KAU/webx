@@ -6,13 +6,16 @@ import (
 	"github.com/T4t4KAU/webx/biz/dal"
 	"github.com/T4t4KAU/webx/biz/dal/query"
 	"github.com/T4t4KAU/webx/mw/auth"
+	"github.com/T4t4KAU/webx/mw/cache"
 	"github.com/T4t4KAU/webx/pkg/constant"
 	"github.com/cloudwego/hertz/pkg/app/server"
+	"github.com/redis/go-redis/v9"
 )
 
 func main() {
 	initDB()
 	initAuth()
+	initCache()
 
 	h := server.Default()
 
@@ -27,4 +30,12 @@ func initDB() {
 
 func initAuth() {
 	auth.Init()
+}
+
+func initCache() {
+	cache.RD = redis.NewClient(&redis.Options{
+		Addr:     constant.RedisAddr,
+		Password: constant.RedisPassword,
+		DB:       0,
+	})
 }

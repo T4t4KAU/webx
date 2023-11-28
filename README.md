@@ -728,12 +728,14 @@ func _profileMw() []app.HandlerFunc {
 
 ## 缓存机制
 
-这次的目标是优化接口性能，在优化之前，可以先测试现在接口的性能是怎样的，可以安装一个叫wrk的工具：
+这次的目标是优化接口性能，在优化之前，可以先测试现在接口的性能是怎样的，下面安装一个叫wrk的工具：
 
 ```powershell
 brew install wrk # MacOS
 apt install wrk # Ubuntu
 ```
+
+`wrk` 是一个用于进行 HTTP 压力测试的开源工具。它是一个命令行工具，用于模拟并测量 HTTP 请求的性能和吞吐量。
 
 查看wrk的使用方法：
 
@@ -762,7 +764,7 @@ Usage: wrk <options> <url>
 ```lua
 wrk.method="POST"
 wrk.headers["Content-Type"] = "application/json"
-wrk.body='{"username":"test", "password": "123456"}'
+wrk.body='{"user_id": 1001}'
 ```
 
 这里只是简单演示，一般情况下并不使用lua脚本
@@ -770,7 +772,7 @@ wrk.body='{"username":"test", "password": "123456"}'
 启动后，在项目根目录下执行该指令进行测试：
 
 ```powershell
- wrk -t1 -d1s -c2 -s ./script/wrk/register.lua http://127.0.0.1:8080/user/register
+ wrk -t1 -d1s -c2 -s ./script/wrk/user_profile.lua http://127.0.0.1:8888/user/profile
 ```
 
 含义是指定线程数为1，持续时间为1s 并发数量为2
@@ -778,47 +780,34 @@ wrk.body='{"username":"test", "password": "123456"}'
 输出(具体结果视机器而定)：
 
 ```
-Running 1s test @ http://127.0.0.1:8080/user/register
   1 threads and 2 connections
   Thread Stats   Avg      Stdev     Max   +/- Stdev
-    Latency     4.18ms    1.86ms  19.17ms   92.28%
-    Req/Sec   499.73    110.01   570.00     90.91%
-  547 requests in 1.10s, 184.83KB read
-Requests/sec:    497.10
-Transfer/sec:    167.97KB
+    Latency    38.20us   44.90us   1.57ms   97.65%
+    Req/Sec    53.57k     6.87k   56.94k    90.91%
+  58619 requests in 1.10s, 13.58MB read
+  Non-2xx or 3xx responses: 58619
+Requests/sec:  53321.56
+Transfer/sec:     12.36MB
 ```
 
 简单解释一下输出信息的含义：
 
-- `Thread Stats`：线程统计信息，包括平均值（Avg）、标准差（Stdev）、最大值（Max）和标准差百分比（+/- Stdev）。
-- `Latency`：延迟统计信息，表示每个请求的平均延迟时间。在这个例子中，平均延迟为4.18毫秒，标准差为1.86毫秒，最大延迟为19.17毫秒。标准差百分比（+/- Stdev）表示延迟值在平均值的正负标准差范围内的百分比。
-- `Req/Sec`：每秒请求数，表示在测试期间平均每秒处理的请求数。在这个例子中，平均每秒处理的请求数为499.73个请求，标准差为110.01，最大请求数为570个请求。标准差百分比（+/- Stdev）表示请求数在平均值的正负标准差范围内的百分比。
-- `547 requests in 1.10s, 184.83KB read`：在测试期间总共发送了547个请求，总共读取了184.83KB的数据。
-- `Requests/sec`：每秒请求数，表示在测试期间平均每秒处理的请求数。在这个例子中，平均每秒处理的请求数为497.10个请求。
-- `Transfer/sec`：每秒传输速率，表示在测试期间平均每秒传输的数据量。在这个例子中，平均每秒传输的数据量为167.97KB。
+- Thread Stats：
+    - Avg：平均值，表示每个请求的平均性能指标。
+    - Stdev：标准差，表示性能指标的波动程度。
+    - Max：最大值，表示性能指标的最大值。
+    - +/- Stdev：标准差的百分比，表示性能指标的波动程度。
+- Latency：
+    - Avg：平均延迟，即每个请求的平均响应时间。
+    - Stdev：延迟的标准差，表示响应时间的波动程度。
+    - Max：最大延迟，表示响应时间的最大值。
+- Req/Sec：每秒请求数，表示每秒发送的请求数量。
+- 58619 requests in 1.10s, 13.58MB read：在 1.10 秒内发送了 58619 个请求，读取了 13.58MB 的数据。
+- Non-2xx or 3xx responses: 58619：非 2xx 或 3xx 响应的请求数，即返回了非成功状态码的请求数。
+- Requests/sec: 53321.56：每秒请求数，表示每秒发送的请求数量。
+- Transfer/sec: 12.36MB：每秒传输数据量，表示每秒传输的数据量。
 
 再看看登录：
-
-执行：
-
-```powershell
-wrk -t1 -d1s -c2 -s ./script/wrk/register.lua http://127.0.0.1:8080/user/login   
-```
-
-结果：
-
-```go
-Running 1s test @ http://127.0.0.1:8080/user/login
-  1 threads and 2 connections
-  Thread Stats   Avg      Stdev     Max   +/- Stdev
-    Latency     1.56ms  489.54us   6.83ms   85.20%
-    Req/Sec     1.30k   189.28     1.54k    81.82%
-  1419 requests in 1.10s, 472.54KB read
-Requests/sec:   1289.62
-Transfer/sec:    429.45KB
-```
-
-登录的性能显然要高很多，这其中有很多原因，比如说用户登录只牵涉读数据库，而MySQL的存储引擎InnoDB的核心数据结构是B+树，查询性能是高于写入性能的，同时登录也不像注册一样涉及哈希计算。
 
 下面做一个简单的性能优化，算是一个基本操作：引入缓存机制，这里要先部署redis组件，同样使用docker来部署:
 
@@ -847,15 +836,80 @@ go get github.com/redis/go-redis/v9
 
 引入缓存就意味着，对于一些查询操作可以先访问缓存，如果缓存没有，再访问数据库，如果缓存中已经存在数据，那么就没必要访问数据库，从而提高了数据查询的效率。但是这样一改就会引发很多潜在的问题，后面再慢慢讨论。
 
-原来的代码结构要做一些修改，引入repository和domain的概念，接着就可以方便地引入缓存模块。
-
-在软件开发中，Domain 是指一个特定的业务领域或问题域，它涉及到特定领域的业务规则、概念、流程和术语等。领域是对特定业务领域的抽象和建模，它关注解决特定领域的业务需求和问题。
-
-Repository是指仓储层，它是在领域层和数据访问层之间的一个接口层，用于封装对数据的访问和操作。Repository提供了一组抽象的方法，用于定义领域对象的持久化操作，例如保存、更新、删除和查询等。Repository的目标是将领域层与数据访问层解耦，使领域层不依赖于具体的数据访问实现，从而提高代码的可测试性和可维护性。
-
-数据库和缓存的操作统一放入repository，而对于一个用户登录注册功能来说，领域是指与用户相关的业务领域，包括用户身份验证、用户注册、用户信息管理等。在这个领域中，用户是核心概念，涉及到用户的身份验证、用户的注册流程、用户的登录状态管理等。
-
 当 redis 中不存在要查询的数据，那么就会返回 为redis.Nil的error (如果访问redis失败产生error，可能要另外考虑，这里先这样写)，判断error是否为nil，如果为nil，那么说明缓存中拿到数据可直接返回，反之要去数据库查询。
+
+实现缓存的接口：
+
+```go
+package cache
+
+var expiration = time.Minute * 15
+
+func GetUserById(ctx context.Context, id int64) (common.User, error) {
+	key := KeyByUserId(id)
+	bytes, err := RD.Get(ctx, key).Bytes()
+	if err != nil {
+		return common.User{}, err
+	}
+
+	var u common.User
+	err = sonic.Unmarshal(bytes, &u)
+	if err != nil {
+		return common.User{}, err
+	}
+	return u, nil
+}
+
+func SetUserById(ctx context.Context, id int64, user common.User) error {
+	val, err := sonic.Marshal(user)
+	if err != nil {
+		return err
+	}
+	key := KeyByUserId(id)
+	return RD.Set(ctx, key, val, expiration).Err()
+}
+
+func KeyByUserId(id int64) string {
+	return fmt.Sprintf("user:id:%d", id)
+}
+
+func KeyByUserName(name string) string {
+	return fmt.Sprintf("user:name:%s", name)
+}
+```
+
+原先的数据库查询作修改：
+
+```go
+func (svc *UserService) Profile(req *user.UserProfileReq) (common.User, error) {
+	data, err := cache.GetUserById(svc.ctx, req.UserID)
+	if err == nil {
+		return data, err
+	}
+
+	u, err := dal.QueryUserById(svc.ctx, req.UserID)
+	if u == (model.User{}) {
+		return common.User{}, errno.UserIsNotExistErr
+	}
+	if err != nil {
+		return common.User{}, err
+	}
+
+	res := common.User{
+		Name:      u.Username,
+		Email:     u.Email,
+		Signature: u.Signature,
+	}
+
+	go func(ctx context.Context) {
+		_ = cache.SetUserById(ctx, req.UserID, res)
+	}(svc.ctx)
+
+	return res, nil
+}
+```
+
+重新启动并使用wrk进行性能测试，可以发现速度提高了10%左右
 
 加入了缓存后又会引出很多问题，例如经典的缓存穿透问题，例如大Key问题，例如遇到更新缓存失败但更新数据库成功如何解决，反之数据库更新失败但缓存更新成功又如何解决？这些都是下面要思考并改进的问题。
 
