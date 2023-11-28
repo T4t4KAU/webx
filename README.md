@@ -612,6 +612,19 @@ func main() {
 }
 ```
 
+在目标数据库中创建数据表：
+
+```sql
+CREATE TABLE `user` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `username` VARCHAR(255) NOT NULL,
+  `password` VARCHAR(255) NOT NULL,
+  `email` VARCHAR(255) NOT NULL,
+  `signature` VARCHAR(255) NOT NULL,
+  PRIMARY KEY (`id`)
+);
+```
+
 在该目录下执行：
 
 ```powershell
@@ -664,6 +677,54 @@ go run generate.go
 └── script
     └── bootstrap.sh
 ```
+
+使用生成的代码，实现一系列添加和查询接口：
+
+```go
+func InsertUser(ctx context.Context, user model.User) error {
+	err := query.User.WithContext(ctx).Create(&user)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func QueryUserById(ctx context.Context, id int64) (model.User, error) {
+	user, err := query.User.WithContext(ctx).Where(query.User.ID.Eq(id)).First()
+	if err != nil {
+		return model.User{}, err
+	}
+	return *user, nil
+}
+
+func QueryUserByName(ctx context.Context, name string) (model.User, error) {
+	user, err := query.User.WithContext(ctx).Where(query.User.Username.Eq(name)).First()
+	if err != nil {
+		return model.User{}, err
+	}
+	return *user, nil
+}
+
+// ......
+```
+
+在生成的代码框架中，在对应路由上增加路由函数，要修改router/user目录下的文件middleware.go：
+
+```go
+func _editMw() []app.HandlerFunc {
+	return []app.HandlerFunc{
+		auth.MiddlewareFunc(),
+	}
+}
+
+func _profileMw() []app.HandlerFunc {
+	return []app.HandlerFunc{
+		auth.MiddlewareFunc(),
+	}
+}
+```
+
+在路由上增加了用户鉴权函数
 
 ## 缓存机制
 
@@ -748,11 +809,11 @@ wrk -t1 -d1s -c2 -s ./script/wrk/register.lua http://127.0.0.1:8080/user/login
 
 ```go
 Running 1s test @ http://127.0.0.1:8080/user/login
-1 threads and 2 connections
-Thread Stats   Avg      Stdev     Max   +/- Stdev
-Latency     1.56ms  489.54us   6.83ms   85.20%
-Req/Sec     1.30k   189.28     1.54k    81.82%
-1419 requests in 1.10s, 472.54KB read
+  1 threads and 2 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     1.56ms  489.54us   6.83ms   85.20%
+    Req/Sec     1.30k   189.28     1.54k    81.82%
+  1419 requests in 1.10s, 472.54KB read
 Requests/sec:   1289.62
 Transfer/sec:    429.45KB
 ```
