@@ -3,6 +3,7 @@
 package user
 
 import (
+	"github.com/T4t4KAU/webx/mw/auth"
 	"github.com/cloudwego/hertz/pkg/app"
 )
 
@@ -17,8 +18,9 @@ func _userMw() []app.HandlerFunc {
 }
 
 func _editMw() []app.HandlerFunc {
-	// your code...
-	return nil
+	return []app.HandlerFunc{
+		auth.MiddlewareFunc(),
+	}
 }
 
 func _loginMw() []app.HandlerFunc {
@@ -27,8 +29,9 @@ func _loginMw() []app.HandlerFunc {
 }
 
 func _profileMw() []app.HandlerFunc {
-	// your code...
-	return nil
+	return []app.HandlerFunc{
+		auth.MiddlewareFunc(),
+	}
 }
 
 func _registerMw() []app.HandlerFunc {

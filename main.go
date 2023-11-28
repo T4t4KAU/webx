@@ -3,12 +3,28 @@
 package main
 
 import (
+	"github.com/T4t4KAU/webx/biz/dal"
+	"github.com/T4t4KAU/webx/biz/dal/query"
+	"github.com/T4t4KAU/webx/mw/auth"
+	"github.com/T4t4KAU/webx/pkg/constant"
 	"github.com/cloudwego/hertz/pkg/app/server"
 )
 
 func main() {
+	initDB()
+	initAuth()
+
 	h := server.Default()
 
 	register(h)
 	h.Spin()
+}
+
+func initDB() {
+	dal.DB = dal.ConnectDB(constant.MySQLDSN).Debug()
+	query.SetDefault(dal.DB)
+}
+
+func initAuth() {
+	auth.Init()
 }

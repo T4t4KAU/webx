@@ -1,0 +1,74 @@
+package service
+
+import (
+	"context"
+	"github.com/T4t4KAU/webx/biz/dal"
+	"github.com/T4t4KAU/webx/biz/dal/model"
+	"github.com/T4t4KAU/webx/biz/model/common"
+	"github.com/T4t4KAU/webx/biz/model/user"
+	"github.com/T4t4KAU/webx/mw/errno"
+	"github.com/cloudwego/hertz/pkg/app"
+	"golang.org/x/crypto/bcrypt"
+)
+
+type UserService struct {
+	ctx context.Context
+	c   *app.RequestContext
+}
+
+func NewUserService(ctx context.Context, c *app.RequestContext) *UserService {
+	return &UserService{
+		ctx: ctx,
+		c:   c,
+	}
+}
+
+func (svc *UserService) Register(req *user.UserRegisterReq) error {
+	u, err := dal.QueryUserByName(svc.ctx, req.Username)
+	if err != nil {
+		return err
+	}
+	if u != (model.User{}) {
+		return errno.UserAlreadyExistErr
+	}
+
+	hashed, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	return dal.InsertUser(svc.ctx, model.User{
+		Username: req.Username,
+		Password: string(hashed),
+	})
+}
+
+func (svc *UserService) Edit(req *user.UserEditReq) error {
+	uid, _ := svc.c.Get("current_user_id")
+	u, err := dal.QueryUserById(svc.ctx, uid.(int64))
+	if u == (model.User{}) {
+		return errno.UserIsNotExistErr
+	}
+	if err != nil {
+		return err
+	}
+
+	u.Email = req.Email
+	u.Signature = req.Signature
+	return dal.UpdateUser(svc.ctx, u)
+}
+
+func (svc *UserService) Profile(req *user.UserProfileReq) (common.User, error) {
+	u, err := dal.QueryUserById(svc.ctx, req.UserID)
+
+	if u == (model.User{}) {
+		return common.User{}, errno.UserIsNotExistErr
+	}
+	if err != nil {
+		return common.User{}, err
+	}
+	return common.User{
+		Email:     u.Email,
+		Signature: u.Signature,
+	}, nil
+}

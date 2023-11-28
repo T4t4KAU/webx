@@ -4,10 +4,10 @@
 
 package model
 
-const TableNameTbUser = "tb_user"
+const TableNameUser = "user"
 
-// TbUser mapped from table <tb_user>
-type TbUser struct {
+// User mapped from table <user>
+type User struct {
 	ID        int64  `gorm:"column:id;primaryKey;autoIncrement:true" json:"id"`
 	Username  string `gorm:"column:username" json:"username"`
 	Password  string `gorm:"column:password" json:"password"`
@@ -15,7 +15,7 @@ type TbUser struct {
 	Signature string `gorm:"column:signature" json:"signature"`
 }
 
-// TableName TbUser's table name
-func (*TbUser) TableName() string {
-	return TableNameTbUser
+// TableName User's table name
+func (*User) TableName() string {
+	return TableNameUser
 }
