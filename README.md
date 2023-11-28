@@ -1,4 +1,4 @@
-# 业务后端开发与实践
+# 业务后端学习与实践
 
 毕业在即，本人现已投身于业务后端的研发，回顾一年来在此领域的学习和实践，写下这篇文章，既是分享自己的一点点收获，也是纪念这一段快乐的时光。因此这既是一篇技术创作，也是一篇属于个人的回忆录，希望以这种方式总结过去的成长，激励自己在未来更加努力。
 
@@ -8,13 +8,15 @@
 2. 使用的框架：Hertz、Kitex、Gorm
 3. 附带完整的代码实现：https://github.com/T4t4KAU/webx
 
+如果对本文有如何的疑问，都可直接邮件联系：microcode1024@gmail.com
+
 ## 快速起步
+
+下面会基于Hertz写一个简单的用户注册和登录接口，登录和注册是非常常见的功能。在注册过程中，用户输入用户名、密码以及其他必要的信息，然后发起注册请求。一旦注册成功，用户的账号信息将被添加到系统中。而在登录过程中，用户使用之前注册时所使用的用户名和密码，再加上其他验证信息，即可成功登录。
 
 Hertz是字节跳动研发的HTTP框架，具有高易用、高性能和高扩展性等特点
 
 快速入门：https://www.cloudwego.io/zh/docs/hertz/getting-started/
-
-下面会基于Hertz写一个简单的用户注册和登录接口，登录和注册是非常常见的功能。在注册过程中，用户输入用户名、密码以及其他必要的信息，然后发起注册请求。一旦注册成功，用户的账号信息将被添加到系统中。而在登录过程中，用户使用之前注册时所使用的用户名和密码，再加上其他验证信息，即可成功登录。
 
 下面将确定用户信息的存储方式和表结构，包括用户名、密码、用户信息等，考虑密码的加密存储和验证机制。
 
@@ -71,7 +73,7 @@ func Init() {
 	if err = dao.Use(gormopentracing.New()); err != nil {
 		panic(err)
 	}
-
+	
 	err = dao.AutoMigrate(&User{})
 	if err != nil {
 		panic(err)
@@ -263,12 +265,12 @@ func UserRegister(ctx context.Context, c *app.RequestContext) {
 		c.String(http.StatusInternalServerError, "system error")
 		return
 	}
-
+	
 	auth.UserLogin(ctx, c)
 }
 ```
 
-这里用户输入的密码要做哈希计算后再存入数据库，明文密码直接存到数据库是不安全的，一旦数据库被非法访问或泄露，攻击者可以直接获取用户的密码。这将导致用户的账户和其他相关信息受到威胁，可能导致身份盗窃、欺诈和其他恶意行为。
+这里用户输入的密码要做哈希计算后再存入数据库，明文密码直接存到数据库是不安全的，一旦数据库被非法访问或泄露，攻击者可以直接获取用户的密码。这将导致用户的账户和其他相关信息受到威胁，可能导致身份盗窃、欺诈和其他恶意行为。当用户注册成功后，再调用UserLogin函数返回登录的响应信息。
 
 注册路由：
 
@@ -310,6 +312,12 @@ curl --location --request POST 'http://127.0.0.1:8080/user/register' \
 
 下面就要实现登录功能了，这里牵涉到一个登录鉴权问题，也就是如何验证用户身份，确保只有经过身份验证的用户可以访问受限资源或执行特定操作。有两种很常见的实现，一个是session一个是jwt，这里使用jwt。
 
+JWT 全称叫 Json Web Token，由三部分组成，通过点号（.）分隔开：
+
+1. Header（头部）：包含了关于令牌的元数据和算法信息，通常包括令牌的类型（如 JWT）、所使用的签名算法（如 HMAC SHA256 或 RSA）等。
+2. Payload（负载）：包含了要传输的数据，可以是用户的身份信息、权限等。负载可以包含自定义的声明（Claim），也可以包含一些预定义的声明，如过期时间（exp）、发布时间（iat）等。
+3. Signature（签名）：使用指定的算法和密钥对头部和负载进行签名，以确保令牌的完整性和真实性。签名可以防止令牌被篡改或伪造。
+
 使用JWT进行鉴权一般流程如下：
 
 1. 用户登录：用户提供凭证进行登录，服务器验证凭证成功后，生成JWT。
@@ -341,11 +349,14 @@ var (
 func Init() {
 	// 创建jwt middleware
 	once, _ = jwt.New(&jwt.HertzJWTMiddleware{
-		Key:     []byte(constants.SecretKey),
+		Key:     []byte(constants.SecretKey), // 签名密钥
 		Timeout: time.Hour * 24,
+        
+        // 添加自定义负载信息
 		PayloadFunc: func(data interface{}) jwt.MapClaims {
 			if v, ok := data.(int64); ok {
 				return jwt.MapClaims{
+                    // 添加user_id作为负载信息
 					constants.IdentityKey: v,
 				}
 			}
@@ -373,6 +384,8 @@ func Init() {
 				"status_msg":  message,
 			})
 		},
+        
+        // 登录时触发
 		Authenticator: func(ctx context.Context, c *app.RequestContext) (interface{}, error) {
 			type LoginParam struct {
 				Username string
@@ -383,6 +396,8 @@ func Init() {
 			if err := c.BindAndValidate(&param); err != nil {
 				return nil, err
 			}
+            
+            // 验证密码正确性
 			uid, err := db.VerifyUser(ctx, param.Username, param.Password)
 			if uid == 0 {
 				err = errno.PasswordIsNotVerified
@@ -395,6 +410,8 @@ func Init() {
 
 			return uid, nil
 		},
+        
+        // 已认证用户路由访问权限函数
 		Authorizator: func(data interface{}, ctx context.Context, c *app.RequestContext) bool {
 			if v, ok := data.(float64); ok {
 				currentUserId := int64(v)
@@ -419,6 +436,8 @@ func MiddlewareFunc() app.HandlerFunc {
 	return once.MiddlewareFunc()
 }
 ```
+
+这段代码比较抽象，详情可以见：https://www.cloudwego.io/zh/docs/hertz/tutorials/basic-feature/middleware/jwt/
 
 接下来应用上述代码
 
@@ -633,6 +652,10 @@ go run generate.go
 
 会在项目目录下生成dal目录，其中包含了生成的代码
 
+其实还有更方便的代码生成方式，只要定义相关的接口，即可将相关函数一并生成，这里就不作过多赘述了
+
+详情请见：https://gorm.io/zh_CN/gen/index.html
+
 目前总体的目录如下所示：
 
 ```powershell
@@ -726,7 +749,7 @@ func _profileMw() []app.HandlerFunc {
 
 在路由上增加了用户鉴权函数
 
-## 缓存机制
+## 缓存引入
 
 这次的目标是优化接口性能，在优化之前，可以先测试现在接口的性能是怎样的，下面安装一个叫wrk的工具：
 
@@ -793,14 +816,14 @@ Transfer/sec:     12.36MB
 简单解释一下输出信息的含义：
 
 - Thread Stats：
-    - Avg：平均值，表示每个请求的平均性能指标。
-    - Stdev：标准差，表示性能指标的波动程度。
-    - Max：最大值，表示性能指标的最大值。
-    - +/- Stdev：标准差的百分比，表示性能指标的波动程度。
+  - Avg：平均值，表示每个请求的平均性能指标。
+  - Stdev：标准差，表示性能指标的波动程度。
+  - Max：最大值，表示性能指标的最大值。
+  - +/- Stdev：标准差的百分比，表示性能指标的波动程度。
 - Latency：
-    - Avg：平均延迟，即每个请求的平均响应时间。
-    - Stdev：延迟的标准差，表示响应时间的波动程度。
-    - Max：最大延迟，表示响应时间的最大值。
+  - Avg：平均延迟，即每个请求的平均响应时间。
+  - Stdev：延迟的标准差，表示响应时间的波动程度。
+  - Max：最大延迟，表示响应时间的最大值。
 - Req/Sec：每秒请求数，表示每秒发送的请求数量。
 - 58619 requests in 1.10s, 13.58MB read：在 1.10 秒内发送了 58619 个请求，读取了 13.58MB 的数据。
 - Non-2xx or 3xx responses: 58619：非 2xx 或 3xx 响应的请求数，即返回了非成功状态码的请求数。
@@ -834,9 +857,13 @@ restart: always
 go get github.com/redis/go-redis/v9
 ```
 
-引入缓存就意味着，对于一些查询操作可以先访问缓存，如果缓存没有，再访问数据库，如果缓存中已经存在数据，那么就没必要访问数据库，从而提高了数据查询的效率。但是这样一改就会引发很多潜在的问题，后面再慢慢讨论。
+引入缓存就意味着，对于一些查询操作可以先访问缓存，如果缓存没有，再访问数据库，如果缓存中已经存在数据，那么就没必要访问数据库，从而提高了数据查询的效率。但是这样一改其实会带来一系列隐患，比如说，缓存不可用了，那么请求就会都落在数据库上，如果QPS很高的话，有打垮数据库的风险，因此要考虑对数据库的保护，又比如缓存和数据库会不会出现数据不一致，应该如何处理。
 
-当 redis 中不存在要查询的数据，那么就会返回 为redis.Nil的error (如果访问redis失败产生error，可能要另外考虑，这里先这样写)，判断error是否为nil，如果为nil，那么说明缓存中拿到数据可直接返回，反之要去数据库查询。
+除了缓存故障问题，还有数据同步的问题，如何让Redis和MySQL同步更新数据？针对不同的场景有不一样的策略，脱离实际问题讨论解决方案是没有意义的，除此以外，潜在的问题还有很多，后面会慢慢讨论。
+
+当 redis 中不存在要查询的数据，那么就会返回值为redis.Nil的error (如果访问redis失败产生error，可能要另外考虑，这里先这样写)，判断error是否为nil，如果为nil，那么说明缓存中拿到数据可直接返回，反之要去数据库查询。
+
+还有一种做法是当访问缓存出现error(不是redis.Nil)，那么就直接返回不再走下面的流程，这样能很好地保护住数据库，也可以说是一种兜底策略。
 
 实现缓存的接口：
 
@@ -878,6 +905,12 @@ func KeyByUserName(name string) string {
 }
 ```
 
+这里使用的json库是sonic，安装：
+
+```powershell
+go get github.com/bytedance/sonic  
+```
+
 原先的数据库查询作修改：
 
 ```go
@@ -909,9 +942,11 @@ func (svc *UserService) Profile(req *user.UserProfileReq) (common.User, error) {
 }
 ```
 
-重新启动并使用wrk进行性能测试，可以发现速度提高了10%左右
+重新启动并使用wrk进行性能测试，可以发现速度提高了10%左右。
 
-加入了缓存后又会引出很多问题，例如经典的缓存穿透问题，例如大Key问题，例如遇到更新缓存失败但更新数据库成功如何解决，反之数据库更新失败但缓存更新成功又如何解决？这些都是下面要思考并改进的问题。
+上述的缓存使用姿势无疑是最简单的一种，实际上应对不同场景还有很多中使用姿势，例如对于高并发场景下可以搭建Redis Cluster，从而保存更多的数据，做到更好的可用性，就算发生单点故障也能继续提供服务，但是这种方案又不适用于大规模集群，因为Redis Cluster采用Goosip协议来传播集群配置的变化，但是在大规模集群下数据传播速度很慢，数据不同步的问题很明显，
+
+加入了缓存后，带来便利的同时也带来了隐患，例如经典的缓存穿透问题，例如大Key问题，例如遇到更新缓存失败但更新数据库成功如何解决，反之数据库更新失败但缓存更新成功又如何解决？这些都是下面要思考并改进的问题。
 
 ## 短信验证
 
@@ -924,3 +959,5 @@ func (svc *UserService) Profile(req *user.UserProfileReq) (common.User, error) {
 3. 强化安全性：短信校验通常会生成一次性的验证码，有效期较短。这意味着即使攻击者获取了验证码，也只能在有效期内使用，增加了安全性。此外，短信校验还可以结合其他安全措施，如IP限制、设备识别等，进一步提升安全性。
 4. 防止密码重用问题：许多用户在不同的网站和应用程序中使用相同的密码，这增加了密码泄露的风险。使用短信校验可以避免用户重复使用密码，每次登录都会生成一个新的验证码。
 5. 降低账户被盗风险：由于短信校验需要攻击者同时获取用户的手机号码和接收短信的设备，相对于仅仅获取密码，攻击者更难以成功盗取用户的账户。
+
+那么现在的目标是，支持短信注册和登录，下面着重对这个需求进行系统地分析，

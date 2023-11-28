@@ -8,6 +8,7 @@ import (
 	"github.com/T4t4KAU/webx/mw/auth"
 	"github.com/T4t4KAU/webx/mw/cache"
 	"github.com/T4t4KAU/webx/pkg/constant"
+	"github.com/cloudwego/hertz/pkg/app/middlewares/server/recovery"
 	"github.com/cloudwego/hertz/pkg/app/server"
 	"github.com/redis/go-redis/v9"
 )
@@ -18,6 +19,8 @@ func main() {
 	initCache()
 
 	h := server.Default()
+
+	recovery.Recovery()
 
 	register(h)
 	h.Spin()
