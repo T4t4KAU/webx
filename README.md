@@ -8,6 +8,10 @@
 2. 使用的框架：Hertz、Kitex、Gorm
 3. 附带完整的代码实现：https://github.com/T4t4KAU/webx
 
+其他案例(在开发中)：
+
+1. 自研PaaS平台
+
 如果对本文有如何的疑问，都可直接邮件联系：microcode1024@gmail.com
 
 ## 快速起步
@@ -948,11 +952,11 @@ func (svc *UserService) Profile(req *user.UserProfileReq) (common.User, error) {
 
 加入了缓存后，带来便利的同时也带来了隐患，例如经典的缓存穿透问题，例如大Key问题，例如遇到更新缓存失败但更新数据库成功如何解决，反之数据库更新失败但缓存更新成功又如何解决？这些都是下面要思考并改进的问题。
 
-## 短信验证
+## 验证方式
 
 之前的登录方式是通过用户名和密码进行登录，这是比较简单和传统的办法了，毫无疑问的是这种方法有很多的缺陷，如今我们可以看到网站的登录方式是五花八门的，已经完全不限于传统的方式。
 
-短信校验作为一种流行的，替代传统密码登录方式的身份验证方法，就具有以下好处：
+例如，短信校验作为一种流行的，替代传统密码登录方式的身份验证方法，就具有以下好处：
 
 1. 避免密码泄露风险：传统的密码登录方式存在密码泄露的风险，如果用户的密码被盗取或猜测，攻击者可以直接使用密码登录用户的账户。而短信校验不需要用户输入密码，减少了密码泄露的风险。
 2. 简化用户体验：短信校验通常只需要用户提供手机号码，然后接收一条包含验证码的短信。用户无需记住和输入复杂的密码，简化了登录流程，提高了用户体验。
@@ -960,4 +964,202 @@ func (svc *UserService) Profile(req *user.UserProfileReq) (common.User, error) {
 4. 防止密码重用问题：许多用户在不同的网站和应用程序中使用相同的密码，这增加了密码泄露的风险。使用短信校验可以避免用户重复使用密码，每次登录都会生成一个新的验证码。
 5. 降低账户被盗风险：由于短信校验需要攻击者同时获取用户的手机号码和接收短信的设备，相对于仅仅获取密码，攻击者更难以成功盗取用户的账户。
 
-那么现在的目标是，支持短信注册和登录，下面着重对这个需求进行系统地分析，
+常见的还有微信扫码验证，相比于传统的账号密码验证具有以下优势：
+
+1. 方便性：微信扫码验证无需用户手动输入账号和密码，只需使用微信扫描二维码即可完成验证过程。这种方式省去了用户记住和输入账号密码的步骤，提供了更加便捷的验证体验。
+2. 安全性：微信扫码验证采用了微信的安全机制，通过微信的身份验证和授权流程来验证用户身份。这种方式可以减少密码泄露的风险，因为用户的敏感信息不需要在第三方应用中传输和存储。
+3. 统一性：微信扫码验证使用了微信作为验证平台，用户可以使用自己的微信账号来进行验证，无需创建和记忆额外的账号和密码。这种方式可以提供统一的身份验证机制，减少了用户需要管理的账号数量。
+4. 快速性：微信扫码验证通常具有较快的验证速度，用户只需扫描二维码即可完成验证过程，无需等待和输入复杂的账号密码。
+
+因为这两个功能的开发难免会涉及到隐私敏感信息，在此就不作过多讲解了，有兴趣可以参见如下文档：
+
+1. 腾讯云国内短信入门：https://cloud.tencent.com/document/product/382/37745
+2. 微信登录开发指南：https://developers.weixin.qq.com/doc/oplatform/Website_App/WeChat_Login/Wechat_Login.html
+
+## 依赖注入
+
+依赖注入（Dependency Injection，简称 DI）是一种软件设计模式和实现技术，用于解耦组件之间的依赖关系。在依赖注入中，依赖关系的创建和管理被委托给外部的容器，而不是由组件自身负责。
+
+在传统的编程模式中，组件通常直接创建和管理它们所依赖的对象。这样的做法导致了高耦合性，使得组件难以重用、测试和维护。而依赖注入通过将依赖关系的创建和管理从组件中移出，提供了更松散的耦合和更灵活的组件设计。
+
+依赖注入的核心思想是，组件不应该主动创建或获取它们所依赖的对象，而是通过外部的容器将依赖的对象注入到组件中。这样，组件只需关注自身的功能，而不需要关心依赖对象的创建和生命周期管理。
+
+简而言之就是，A依赖于B，A要调用B的方法，那么在A初始化的时候就直接传入一个构造好的B。
+
+## 面向接口
+
+面向接口编程是一种编程范式，它强调程序设计应该基于抽象接口而不是具体实现。在面向接口编程中，程序的组件（类、函数等）通过定义接口来描述其行为和功能，而不是通过具体的实现类来定义。
+
+面向接口编程的主要思想是将程序的依赖关系解耦，提高代码的灵活性、可扩展性和可维护性。通过面向接口编程，可以实现以下优势：
+
+1. 松耦合性：面向接口编程将组件之间的依赖关系限制在接口层面，而不是具体的实现类。这样，组件之间的耦合度降低，可以更容易地替换和扩展组件。
+2. 可替换性：由于组件之间的依赖关系是基于接口而不是具体实现，因此可以轻松地替换一个实现类，而不会影响其他组件的使用。
+3. 可测试性：面向接口编程使得单元测试更加容易，因为可以使用模拟对象或测试替身来替代具体的实现类，从而隔离被测试组件的依赖。
+4. 可扩展性：通过定义接口，可以更容易地添加新的实现类，扩展系统的功能和行为。
+
+采用面向接口编程有着明显的好处，假如要将缓存组件要换成本地内存缓存，只要实现规定的方法就可以无缝替换。
+
+如下是一个简单的面相接口编程的案例：
+
+```go
+package main
+
+import (
+	"fmt"
+)
+
+// Animal 接口定义了动物的行为
+type Animal interface {
+	Speak() string
+}
+
+// Dog 是 Animal 接口的具体实现
+type Dog struct{}
+
+// Speak 是 Dog 的方法实现
+func (d Dog) Speak() string {
+	return "Woof!"
+}
+
+// Cat 是 Animal 接口的具体实现
+type Cat struct{}
+
+// Speak 是 Cat 的方法实现
+func (c Cat) Speak() string {
+	return "Meow!"
+}
+
+func main() {
+	// 创建一个 Animal 类型的切片，包含 Dog 和 Cat 实例
+	animals := []Animal{Dog{}, Cat{}}
+
+	// 遍历切片并调用 Speak 方法
+	for _, animal := range animals {
+		fmt.Println(animal.Speak())
+	}
+}
+```
+
+## 配置模块
+
+配置模块是指用于管理和读取应用程序配置的模块或组件。配置模块通常用于将应用程序的配置信息从代码中分离出来，以便在不修改代码的情况下进行配置的更改。
+
+Viper 是一个 Go 语言的配置管理库，用于读取、解析和管理应用程序的配置。它提供了简单且灵活的方式来处理配置文件、环境变量、命令行参数等不同来源的配置数据。
+
+安装相关库：
+
+```powershell
+go get github.com/spf13/viper
+```
+
+viper使用方法：https://learnku.com/articles/33908
+
+## 日志模块
+
+日志在开发和运维中有重要的作用，是排查问题和分析程序运行状态的重要工具
+
+日志是分级别的，常见的日志级别包括以下几个：
+
+1. DEBUG (调试)：最低级别的日志，用于输出详细的调试信息，通常用于开发和调试阶段。
+2. INFO (信息)：用于输出一般的信息性消息，例如应用程序的启动、关键操作的开始和结束等。
+3. WARN(警告)：用于输出警告信息，表示潜在的问题或异常情况，但不会导致应用程序的中断或错误。
+4. ERROR(错误)：用于输出错误信息，表示应用程序遇到了可恢复的错误或异常情况，但仍然可以继续运行。
+5. FATAL(致命)：最高级别的日志，用于输出致命错误信息，表示应用程序遇到了无法恢复的严重错误，可能导致应用程序的崩溃或终止。
+
+在Go中，主要使用zap作为日志框架，安装方式：
+
+```powershell
+go get -u go.uber.org/zap
+```
+
+引入日志模块后，要对程序进行新的改造，例如不应该将error暴露出来，应该使用日志信息来输出
+
+这里推荐先定义一个接口：
+
+```go
+type Logger interface {
+	Debug(msg string, args ...any)
+	Info(msg string, args ...any)
+	Warn(msg string, args ...any)
+	Error(msg string, args ...any)
+}
+```
+
+实现相关接口：
+
+```go
+type ZapLogger struct {
+	l *zap.Logger
+}
+
+func (z *ZapLogger) Debug(msg string, args ...Field) {
+	z.l.Debug(msg, z.toZapFields(args)...)
+}
+
+func (z *ZapLogger) Info(msg string, args ...Field) {
+	z.l.Info(msg, z.toZapFields(args)...)
+}
+
+func (z *ZapLogger) Warn(msg string, args ...Field) {
+	z.l.Warn(msg, z.toZapFields(args)...)
+}
+
+func (z *ZapLogger) Error(msg string, args ...Field) {
+	z.l.Warn(msg, z.toZapFields(args)...)
+}
+
+func (z *ZapLogger) toZapFields(args []Field) []zap.Field {
+	res := make([]zap.Field, 0, len(args))
+	for _, arg := range args {
+		res = append(res, zap.Any(arg.Key, arg.Value))
+	}
+	return res
+}
+```
+
+增加日志输出：
+
+```go
+func (svc *UserService) Profile(req *user.UserProfileReq) (common.User, error) {
+	// ......
+
+	u, err := dal.QueryUserById(svc.ctx, req.UserID)
+	if u == (model.User{}) {
+		return common.User{}, errno.UserIsNotExistErr
+	}
+	if err != nil {
+		logger.Warn("Failed to query user by id, error=", err.Error())
+		return common.User{}, err
+	}
+    
+	// ......
+}
+
+```
+
+Hertz还支持了在系统出入口输出日志信息，所谓出口就是调用第三方模块，入口就是收到请求
+
+定义Handler
+
+```go
+func LogRecoveryHandler(c context.Context, ctx *app.RequestContext, err interface{}, stack []byte) {
+	hlog.SystemLogger().CtxErrorf(c, "[Recovery] err=%v\nstack=%s", err, stack)
+	hlog.SystemLogger().Infof("Client: %s", ctx.Request.Header.UserAgent())
+	ctx.AbortWithStatus(consts.StatusInternalServerError)
+}
+```
+
+使用：
+
+```go
+h.Use(recovery.Recovery(recovery.WithRecoveryHandler(logx.LogRecoveryHandler)))
+```
+
+## 发帖功能
+
+发帖是一个典型的内容生产模块，除此之外还有发照片墙、发视频等
+
+对于内容创作者来说，对帖子应该有增删改查的权限，而对读者来说，只用查询。
+
+这里引入一个概念：TDD，即测试驱动开发，也就是先写测试再写实现，通过撰写测试，理解清楚接口该如何定义，体会用户使用起来是否合适，通过撰写测试用例，理清楚整个功能要考虑的主流程和异常流程
+

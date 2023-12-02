@@ -31,7 +31,9 @@ const (
 	ErrPassWordOverSizeCode
 	ErrPassWordBelowSizeCode
 	ErrPassWordSymbolsCode
-    ErrIPLimitedCode
+	ErrIPLimitedCode
+
+	ErrInternalErrorCode
 )
 
 const (
@@ -46,6 +48,8 @@ const (
 	FriendListNoPermissionMsg = "You can't query his friend list"
 	VideoIsNotExistErrMsg     = "video is not exist"
 	CommentIsNotExistErrMsg   = "comment is not exist"
+
+	InternalErrorMsg = "internal error"
 )
 
 type ErrNo struct {
@@ -85,11 +89,7 @@ var (
 	VideoIsNotExistErr        = NewErrNo(VideoIsNotExistErrCode, VideoIsNotExistErrMsg)
 	CommentIsNotExistErr      = NewErrNo(CommentIsNotExistErrCode, CommentIsNotExistErrMsg)
 
-	ErrUserNameOverSize  = NewErrNo(ErrUserNameOverSizeCode, "用户名长度应小于32")
-	ErrPassWordOverSize  = NewErrNo(ErrPassWordOverSizeCode, "密码长度应大于5")
-	ErrPassWordBelowSize = NewErrNo(ErrPassWordBelowSizeCode, "密码长度应小于32")
-	ErrPassWordSymbols   = NewErrNo(ErrPassWordSymbolsCode, "密码需包含字母、数字及特殊字符")
-    ErrIPLimited         = NewErrNo(ErrIPLimitedCode, "操作频繁，请稍后再试")
+	ErrInternalError = NewErrNo(ErrInternalErrorCode, InternalErrorMsg)
 )
 
 // ConvertErr convert error to Errno

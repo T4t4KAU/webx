@@ -3,7 +3,7 @@
 package user
 
 import (
-	"github.com/T4t4KAU/webx/mw/auth"
+	"github.com/T4t4KAU/webx/pkg/mw/auth"
 	"github.com/cloudwego/hertz/pkg/app"
 )
 

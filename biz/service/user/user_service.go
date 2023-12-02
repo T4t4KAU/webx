@@ -6,8 +6,9 @@ import (
 	"github.com/T4t4KAU/webx/biz/dal/model"
 	"github.com/T4t4KAU/webx/biz/model/common"
 	"github.com/T4t4KAU/webx/biz/model/user"
-	"github.com/T4t4KAU/webx/mw/cache"
-	"github.com/T4t4KAU/webx/mw/errno"
+	"github.com/T4t4KAU/webx/pkg/errno"
+	"github.com/T4t4KAU/webx/pkg/mw/cache"
+	"github.com/bytedance/gopkg/util/logger"
 	"github.com/cloudwego/hertz/pkg/app"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -35,7 +36,7 @@ func (svc *UserService) Register(req *user.UserRegisterReq) error {
 
 	hashed, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
-		return err
+		return errno.ErrInternalError.WithMessage("generate hashed password failed")
 	}
 
 	return dal.InsertUser(svc.ctx, model.User{
@@ -51,6 +52,7 @@ func (svc *UserService) Edit(req *user.UserEditReq) error {
 		return errno.UserIsNotExistErr
 	}
 	if err != nil {
+		logger.Warn("Failed to query user by id, error=", err.Error())
 		return err
 	}
 
@@ -70,6 +72,7 @@ func (svc *UserService) Profile(req *user.UserProfileReq) (common.User, error) {
 		return common.User{}, errno.UserIsNotExistErr
 	}
 	if err != nil {
+		logger.Warn("Failed to query user by id, error=", err.Error())
 		return common.User{}, err
 	}
 

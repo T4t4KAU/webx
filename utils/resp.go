@@ -2,7 +2,7 @@ package utils
 
 import (
 	"errors"
-	"github.com/T4t4KAU/webx/mw/errno"
+	"github.com/T4t4KAU/webx/pkg/errno"
 )
 
 type BaseResp struct {

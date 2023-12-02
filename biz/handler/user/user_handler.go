@@ -6,7 +6,7 @@ import (
 	"context"
 	"github.com/T4t4KAU/webx/biz/model/user"
 	service "github.com/T4t4KAU/webx/biz/service/user"
-	"github.com/T4t4KAU/webx/mw/auth"
+	"github.com/T4t4KAU/webx/pkg/mw/auth"
 	"github.com/T4t4KAU/webx/utils"
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
