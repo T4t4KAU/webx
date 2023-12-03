@@ -1155,11 +1155,119 @@ func LogRecoveryHandler(c context.Context, ctx *app.RequestContext, err interfac
 h.Use(recovery.Recovery(recovery.WithRecoveryHandler(logx.LogRecoveryHandler)))
 ```
 
-## 发帖功能
+## 发表功能
 
-发帖是一个典型的内容生产模块，除此之外还有发照片墙、发视频等
+发文章是一个典型的内容生产模块，除此之外还有发照片墙、发视频等
 
-对于内容创作者来说，对帖子应该有增删改查的权限，而对读者来说，只用查询。
+对于内容创作者来说，对文章应该有增删改查的权限，而对读者来说，只用查询。
 
-这里引入一个概念：TDD，即测试驱动开发，也就是先写测试再写实现，通过撰写测试，理解清楚接口该如何定义，体会用户使用起来是否合适，通过撰写测试用例，理清楚整个功能要考虑的主流程和异常流程
+首先创建对应的数据表，来存储帖子：
+
+```sql
+create table article
+(
+    id        bigint auto_increment
+        primary key,
+    title     varchar(1024) null,
+    content   blob          null,
+    author_id bigint        null,
+    ctime     bigint        null,
+    utime     bigint        null,
+    constraint article_user_id_fk
+        foreign key (author_id) references user (id)
+);
+
+create index article_author_id_index
+    on article (author_id);
+```
+
+使用gen生成代码，随后定义相关的函数：
+
+```go
+func InsertArticle(ctx context.Context, article model.Article) error {
+	return dal.DB.WithContext(ctx).Create(article).Error
+}
+
+func QueryArticleById(ctx context.Context, id int64) (*model.Article, error) {
+	article, err := query.Article.WithContext(ctx).Where(query.Article.ID.Eq(id)).First()
+	if err != nil {
+		return &model.Article{}, err
+	}
+	return article, nil
+}
+
+// ......
+```
+
+生成好数据层相关的代码后，开始分析这个功能的需求：
+
+在这个场景中，用户是文章的创作者，从DDD的角度看，在用户领域中，用户是一个实体，是独立存在的，而在文章领域中，用户就称为了值对象，意义为某个文章的创作者。
+
+对于文章的创作者，文章服务至少提供四个接口，发表、编辑、删除和查询，与此同时，文章如果没被删除的话，应该有两种状态：未发表和已发表，未发表可能是用户还在编辑，文章还是草稿，已发表即用户已经确认发表，将显示出来。有些情况下，文章还设置了部分用户不可见，或者文章还有一个在审核的状态，这些情况以及其他复杂的情况暂且不考虑。
+
+同时，这里的文章是纯文本，不会嵌入视频、图片等其他信息。
+
+定义新的IDL：
+
+```thrift
+namespace go article
+
+include "common.thrift"
+
+struct ArticlePublishReq {
+    1: required string title,
+    2: required string content,
+    3: required string token
+}
+
+struct ArticlePublishResp {
+    1: required i32 status_code
+    2: required string status_msg
+}
+
+struct ArticleDeleteReq {
+    1: required i64 article_id
+    2: required string token
+}
+
+struct ArticleDeleteResp {
+    1: required i32 status_code
+    2: required string status_msg
+}
+
+struct ArticleEditReq {
+    1: required i64 article_id,
+    2: optional string title,
+    3: optional string content,
+    4: required string token
+}
+
+struct ArticleEditResp {
+    1: required i32 status_code
+    2: required string status_msg
+}
+
+struct ArticleInfoReq {
+    1: required i64 article_id,
+}
+
+struct ArticleInfoResp {
+    1: required i32 status_code
+    2: required string status_msg
+    3: optional common.Article article,
+}
+
+service ArticleService {
+    ArticlePublishResp Publish(1: ArticlePublishReq request) (api.post="/article/publish"),
+    ArticleDeleteResp Delete(1: ArticleDeleteReq request) (api.post="/article/delete"),
+    ArticleEditResp Edit(1: ArticleEditReq request) (api.post="/article/edit"),
+    ArticleInfoResp GetInfo(1: ArticleInfoReq request) (api.get="/article/info"),
+}
+```
+
+更新代码：
+
+```powershell
+hz update -idl idl/article.thrift -module github.com/T4t4KAU/webx
+```
 

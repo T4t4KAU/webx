@@ -6,6 +6,7 @@ struct ArticleCreateReq {
     1: required string title,
     2: required string content,
     3: required string token
+    4: required bool publish
 }
 
 struct ArticleCreateResp {

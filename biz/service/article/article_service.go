@@ -24,10 +24,28 @@ func NewArticleService(ctx context.Context, c *app.RequestContext) *ArticleServi
 	}
 }
 
+func (svc *ArticleService) Create(req *article.ArticleCreateReq) error {
+	id, _ := svc.c.Get("current_user_id")
+	err := dal.InsertArticle(svc.ctx, model.Article{
+		Title:     req.Title,
+		Content:   []byte(req.Content),
+		AuthorID:  id.(int64),
+		Ctime:     time.Now().UnixNano(),
+		Utime:     time.Now().UnixNano(),
+		Published: req.Publish,
+	})
+	if err != nil {
+		logger.Warn("Failed to insert article to database, error=" + err.Error())
+		return err
+	}
+	return nil
+}
+
 func (svc *ArticleService) Publish(req *article.ArticlePublishReq) error {
 	id, _ := svc.c.Get("current_user_id")
 	ar, err := dal.QueryArticleById(svc.ctx, req.ArticleID)
 	if err != nil {
+		logger.Warn("Failed to query article by id, error=" + err.Error())
 		return err
 	}
 	if id != ar.AuthorID {

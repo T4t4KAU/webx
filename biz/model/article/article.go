@@ -13,6 +13,7 @@ type ArticleCreateReq struct {
 	Title   string `thrift:"title,1,required" form:"title,required" json:"title,required" query:"title,required"`
 	Content string `thrift:"content,2,required" form:"content,required" json:"content,required" query:"content,required"`
 	Token   string `thrift:"token,3,required" form:"token,required" json:"token,required" query:"token,required"`
+	Publish bool   `thrift:"publish,4,required" form:"publish,required" json:"publish,required" query:"publish,required"`
 }
 
 func NewArticleCreateReq() *ArticleCreateReq {
@@ -31,10 +32,15 @@ func (p *ArticleCreateReq) GetToken() (v string) {
 	return p.Token
 }
 
+func (p *ArticleCreateReq) GetPublish() (v bool) {
+	return p.Publish
+}
+
 var fieldIDToName_ArticleCreateReq = map[int16]string{
 	1: "title",
 	2: "content",
 	3: "token",
+	4: "publish",
 }
 
 func (p *ArticleCreateReq) Read(iprot thrift.TProtocol) (err error) {
@@ -44,6 +50,7 @@ func (p *ArticleCreateReq) Read(iprot thrift.TProtocol) (err error) {
 	var issetTitle bool = false
 	var issetContent bool = false
 	var issetToken bool = false
+	var issetPublish bool = false
 
 	if _, err = iprot.ReadStructBegin(); err != nil {
 		goto ReadStructBeginError
@@ -92,6 +99,17 @@ func (p *ArticleCreateReq) Read(iprot thrift.TProtocol) (err error) {
 					goto SkipFieldError
 				}
 			}
+		case 4:
+			if fieldTypeId == thrift.BOOL {
+				if err = p.ReadField4(iprot); err != nil {
+					goto ReadFieldError
+				}
+				issetPublish = true
+			} else {
+				if err = iprot.Skip(fieldTypeId); err != nil {
+					goto SkipFieldError
+				}
+			}
 		default:
 			if err = iprot.Skip(fieldTypeId); err != nil {
 				goto SkipFieldError
@@ -118,6 +136,11 @@ func (p *ArticleCreateReq) Read(iprot thrift.TProtocol) (err error) {
 
 	if !issetToken {
 		fieldId = 3
+		goto RequiredFieldNotSetError
+	}
+
+	if !issetPublish {
+		fieldId = 4
 		goto RequiredFieldNotSetError
 	}
 	return nil
@@ -165,6 +188,15 @@ func (p *ArticleCreateReq) ReadField3(iprot thrift.TProtocol) error {
 	return nil
 }
 
+func (p *ArticleCreateReq) ReadField4(iprot thrift.TProtocol) error {
+	if v, err := iprot.ReadBool(); err != nil {
+		return err
+	} else {
+		p.Publish = v
+	}
+	return nil
+}
+
 func (p *ArticleCreateReq) Write(oprot thrift.TProtocol) (err error) {
 	var fieldId int16
 	if err = oprot.WriteStructBegin("ArticleCreateReq"); err != nil {
@@ -181,6 +213,10 @@ func (p *ArticleCreateReq) Write(oprot thrift.TProtocol) (err error) {
 		}
 		if err = p.writeField3(oprot); err != nil {
 			fieldId = 3
+			goto WriteFieldError
+		}
+		if err = p.writeField4(oprot); err != nil {
+			fieldId = 4
 			goto WriteFieldError
 		}
 
@@ -251,6 +287,23 @@ WriteFieldBeginError:
 	return thrift.PrependError(fmt.Sprintf("%T write field 3 begin error: ", p), err)
 WriteFieldEndError:
 	return thrift.PrependError(fmt.Sprintf("%T write field 3 end error: ", p), err)
+}
+
+func (p *ArticleCreateReq) writeField4(oprot thrift.TProtocol) (err error) {
+	if err = oprot.WriteFieldBegin("publish", thrift.BOOL, 4); err != nil {
+		goto WriteFieldBeginError
+	}
+	if err := oprot.WriteBool(p.Publish); err != nil {
+		return err
+	}
+	if err = oprot.WriteFieldEnd(); err != nil {
+		goto WriteFieldEndError
+	}
+	return nil
+WriteFieldBeginError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 4 begin error: ", p), err)
+WriteFieldEndError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 4 end error: ", p), err)
 }
 
 func (p *ArticleCreateReq) String() string {
