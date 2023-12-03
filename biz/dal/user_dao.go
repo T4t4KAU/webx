@@ -8,11 +8,7 @@ import (
 )
 
 func InsertUser(ctx context.Context, user model.User) error {
-	err := query.User.WithContext(ctx).Create(&user)
-	if err != nil {
-		return err
-	}
-	return nil
+	return query.User.WithContext(ctx).Create(&user)
 }
 
 func QueryUserById(ctx context.Context, id int64) (model.User, error) {
