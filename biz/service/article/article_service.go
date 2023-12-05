@@ -26,6 +26,8 @@ func NewArticleService(ctx context.Context, c *app.RequestContext) *ArticleServi
 
 func (svc *ArticleService) Create(req *article.ArticleCreateReq) error {
 	id, _ := svc.c.Get("current_user_id")
+
+	// 初始化文章 插入数据库
 	err := dal.InsertArticle(svc.ctx, model.Article{
 		Title:     req.Title,
 		Content:   []byte(req.Content),
@@ -93,6 +95,8 @@ func (svc *ArticleService) Edit(req *article.ArticleEditReq) error {
 	ar.Title = *req.Title
 	ar.Content = []byte(*req.Content)
 	ar.Utime = time.Now().UnixNano()
+
+	// 更新数据库数据
 	err = dal.UpdateArticleById(svc.ctx, ar)
 	if err != nil {
 		logger.Warn("Fail to update article by id, error=" + err.Error())
@@ -107,7 +111,7 @@ func (svc *ArticleService) GetInfo(req *article.ArticleInfoReq) (common.Article,
 		return common.Article{}, err
 	}
 	if ar == (&model.Article{}) {
-		return common.Article{}, nil
+		return common.Article{}, errno.ArticleIsNotExistErr
 	}
 	return common.Article{
 		AuthorID: ar.AuthorID,

@@ -68,12 +68,12 @@ func (svc *UserService) Profile(req *user.UserProfileReq) (common.User, error) {
 	}
 
 	u, err := dal.QueryUserById(svc.ctx, req.UserID)
-	if u == (model.User{}) {
-		return common.User{}, errno.UserIsNotExistErr
-	}
 	if err != nil {
 		logger.Warn("Failed to query user by id, error=", err.Error())
 		return common.User{}, err
+	}
+	if u == (model.User{}) {
+		return common.User{}, errno.UserIsNotExistErr
 	}
 
 	res := common.User{

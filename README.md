@@ -6,11 +6,8 @@
 
 1. 使用语言：Go
 2. 使用的框架：Hertz、Kitex、Gorm
-3. 附带完整的代码实现：https://github.com/T4t4KAU/webx
-
-其他案例(在开发中)：
-
-1. 自研PaaS平台
+3. 附带完整的代码实现：
+  - https://github.com/T4t4KAU/webx
 
 如果对本文有如何的疑问，都可直接邮件联系：microcode1024@gmail.com
 
@@ -1155,7 +1152,7 @@ func LogRecoveryHandler(c context.Context, ctx *app.RequestContext, err interfac
 h.Use(recovery.Recovery(recovery.WithRecoveryHandler(logx.LogRecoveryHandler)))
 ```
 
-## 发表功能
+## 文章发表
 
 发文章是一个典型的内容生产模块，除此之外还有发照片墙、发视频等
 
@@ -1185,18 +1182,16 @@ create index article_author_id_index
 
 ```go
 func InsertArticle(ctx context.Context, article model.Article) error {
-	return dal.DB.WithContext(ctx).Create(article).Error
+	return query.Article.WithContext(ctx).Create(&article)
 }
 
 func QueryArticleById(ctx context.Context, id int64) (*model.Article, error) {
 	article, err := query.Article.WithContext(ctx).Where(query.Article.ID.Eq(id)).First()
 	if err != nil {
-		return &model.Article{}, err
+		return &model.Article{}, errno.ErrDatabaseError.WithMessage(err.Error())
 	}
 	return article, nil
 }
-
-// ......
 ```
 
 生成好数据层相关的代码后，开始分析这个功能的需求：
@@ -1214,10 +1209,21 @@ namespace go article
 
 include "common.thrift"
 
-struct ArticlePublishReq {
+struct ArticleCreateReq {
     1: required string title,
     2: required string content,
     3: required string token
+    4: required bool publish
+}
+
+struct ArticleCreateResp {
+    1: required i64 article_id
+    2: required i32 status_code
+    3: required string status_msg
+}
+
+struct ArticlePublishReq {
+    1: required i64 article_id
 }
 
 struct ArticlePublishResp {
@@ -1262,6 +1268,7 @@ service ArticleService {
     ArticleDeleteResp Delete(1: ArticleDeleteReq request) (api.post="/article/delete"),
     ArticleEditResp Edit(1: ArticleEditReq request) (api.post="/article/edit"),
     ArticleInfoResp GetInfo(1: ArticleInfoReq request) (api.get="/article/info"),
+    ArticleCreateResp Create(1: ArticleCreateReq request) (api.get="/article/create")
 }
 ```
 
@@ -1271,3 +1278,120 @@ service ArticleService {
 hz update -idl idl/article.thrift -module github.com/T4t4KAU/webx
 ```
 
+对于一篇全新的文章，用户在创建的时候调用Create接口，这时候会生成一篇文章对应的id以及其他信息，并将数据插入数据库，如果用户创建后没有发表，只是保存的话，那么就设置published为false，如果发表的话就标记为true。如果修改文章的内容，那么就调用Edit接口，将新的内容更新到数据库，如果删除的话就调用Delete接口，如果查询某个文章的信息，那么就调用GetInfo接口。
+
+实现service：
+
+```go
+package service
+
+type ArticleService struct {
+	ctx context.Context
+	c   *app.RequestContext
+}
+
+func NewArticleService(ctx context.Context, c *app.RequestContext) *ArticleService {
+	return &ArticleService{
+		ctx: ctx,
+		c:   c,
+	}
+}
+
+func (svc *ArticleService) Create(req *article.ArticleCreateReq) error {
+	id, _ := svc.c.Get("current_user_id")
+
+	// 初始化文章 插入数据库
+	err := dal.InsertArticle(svc.ctx, model.Article{
+		Title:     req.Title,
+		Content:   []byte(req.Content),
+		AuthorID:  id.(int64),
+		Ctime:     time.Now().UnixNano(),
+		Utime:     time.Now().UnixNano(),
+		Published: req.Publish,
+	})
+	if err != nil {
+		logger.Warn("Failed to insert article to database, error=" + err.Error())
+		return err
+	}
+	return nil
+}
+
+func (svc *ArticleService) Publish(req *article.ArticlePublishReq) error {
+	id, _ := svc.c.Get("current_user_id")
+	ar, err := dal.QueryArticleById(svc.ctx, req.ArticleID)
+	if err != nil {
+		logger.Warn("Failed to query article by id, error=" + err.Error())
+		return err
+	}
+	if id != ar.AuthorID {
+		return errno.ArticlePermssionDenied
+	}
+
+	ar.Published = true
+	err = dal.UpdateArticleById(svc.ctx, ar)
+	if err != nil {
+		logger.Warn("Fail to update article by id, error=" + err.Error())
+		return err
+	}
+	return nil
+}
+
+func (svc *ArticleService) Delete(req *article.ArticleDeleteReq) error {
+	id, _ := svc.c.Get("current_user_id")
+	ar, err := dal.QueryArticleById(svc.ctx, req.ArticleID)
+	if err != nil {
+		logger.Warn("Failed to query article by id, error=" + err.Error())
+		return err
+	}
+	if ar.AuthorID != id {
+		return errno.ArticlePermssionDenied
+	}
+	err = dal.DeleteArticleById(svc.ctx, req.ArticleID)
+	if err != nil {
+		logger.Warn("Failed to delete article by id, error=" + err.Error())
+		return err
+	}
+	return nil
+}
+
+func (svc *ArticleService) Edit(req *article.ArticleEditReq) error {
+	id, _ := svc.c.Get("current_user_id")
+	ar, err := dal.QueryArticleById(svc.ctx, req.ArticleID)
+	if err != nil {
+		logger.Warn("Failed to query article by id, error=" + err.Error())
+		return err
+	}
+	if ar.AuthorID != id {
+		return errno.ArticlePermssionDenied
+	}
+
+	ar.Title = *req.Title
+	ar.Content = []byte(*req.Content)
+	ar.Utime = time.Now().UnixNano()
+
+	// 更新数据库数据
+	err = dal.UpdateArticleById(svc.ctx, ar)
+	if err != nil {
+		logger.Warn("Fail to update article by id, error=" + err.Error())
+		return err
+	}
+	return nil
+}
+
+func (svc *ArticleService) GetInfo(req *article.ArticleInfoReq) (common.Article, error) {
+	ar, err := dal.QueryArticleById(svc.ctx, req.ArticleID)
+	if err != nil {
+		return common.Article{}, err
+	}
+	if ar == (&model.Article{}) {
+		return common.Article{}, errno.ArticleIsNotExistErr
+	}
+	return common.Article{
+		AuthorID: ar.AuthorID,
+		Title:    ar.Title,
+		Content:  string(ar.Content),
+	}, nil
+}
+```
+
+这就是初代版本的实现，这里没有考虑使用缓存，现在来尝试优化这些方法

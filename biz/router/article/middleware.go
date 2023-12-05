@@ -3,12 +3,15 @@
 package article
 
 import (
+	"github.com/T4t4KAU/webx/pkg/mw/auth"
 	"github.com/cloudwego/hertz/pkg/app"
 )
 
 func rootMw() []app.HandlerFunc {
 	// your code...
-	return nil
+	return []app.HandlerFunc{
+		auth.MiddlewareFunc(),
+	}
 }
 
 func _articleMw() []app.HandlerFunc {

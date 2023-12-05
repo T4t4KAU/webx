@@ -5,11 +5,10 @@ import (
 	"github.com/T4t4KAU/webx/biz/dal/model"
 	"github.com/T4t4KAU/webx/biz/dal/query"
 	"github.com/T4t4KAU/webx/pkg/errno"
-	"gorm.io/gen/examples/dal"
 )
 
 func InsertArticle(ctx context.Context, article model.Article) error {
-	return dal.DB.WithContext(ctx).Create(article).Error
+	return query.Article.WithContext(ctx).Create(&article)
 }
 
 func QueryArticleById(ctx context.Context, id int64) (*model.Article, error) {

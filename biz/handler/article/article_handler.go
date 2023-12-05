@@ -109,5 +109,10 @@ func Create(ctx context.Context, c *app.RequestContext) {
 
 	resp := new(article.ArticleCreateResp)
 
+	err = service.NewArticleService(ctx, c).Create(&req)
+	r := utils.BuildBaseResp(err)
+	resp.StatusCode = r.StatusCode
+	resp.StatusMsg = r.StatusMsg
+
 	c.JSON(consts.StatusOK, resp)
 }
