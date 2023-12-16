@@ -19,9 +19,10 @@ func Register(r *server.Hertz) {
 	root := r.Group("/", rootMw()...)
 	{
 		_article := root.Group("/article", _articleMw()...)
-		_article.GET("/create", append(_createMw(), article.Create)...)
+		_article.POST("/create", append(_createMw(), article.Create)...)
 		_article.POST("/delete", append(_deleteMw(), article.Delete)...)
 		_article.POST("/edit", append(_editMw(), article.Edit)...)
+		_article.GET("/hide", append(_hideMw(), article.Hide)...)
 		_article.GET("/info", append(_getinfoMw(), article.GetInfo)...)
 		_article.POST("/publish", append(_publishMw(), article.Publish)...)
 	}

@@ -4,7 +4,7 @@ package article
 
 import (
 	"context"
-	article "github.com/T4t4KAU/webx/biz/model/article"
+	"github.com/T4t4KAU/webx/biz/model/article"
 	service "github.com/T4t4KAU/webx/biz/service/article"
 	"github.com/T4t4KAU/webx/utils"
 	"github.com/cloudwego/hertz/pkg/app"
@@ -110,6 +110,27 @@ func Create(ctx context.Context, c *app.RequestContext) {
 	resp := new(article.ArticleCreateResp)
 
 	err = service.NewArticleService(ctx, c).Create(&req)
+	r := utils.BuildBaseResp(err)
+	resp.StatusCode = r.StatusCode
+	resp.StatusMsg = r.StatusMsg
+
+	c.JSON(consts.StatusOK, resp)
+}
+
+// Hide .
+// @router /article/hide [GET]
+func Hide(ctx context.Context, c *app.RequestContext) {
+	var err error
+	var req article.ArticleHideReq
+	err = c.BindAndValidate(&req)
+	if err != nil {
+		c.String(consts.StatusBadRequest, err.Error())
+		return
+	}
+
+	resp := new(article.ArticleHideResp)
+
+	err = service.NewArticleService(ctx, c).Hide(&req)
 	r := utils.BuildBaseResp(err)
 	resp.StatusCode = r.StatusCode
 	resp.StatusMsg = r.StatusMsg

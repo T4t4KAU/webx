@@ -26,6 +26,11 @@ func NewUserService(ctx context.Context, c *app.RequestContext) *UserService {
 }
 
 func (svc *UserService) Register(req *user.UserRegisterReq) error {
+	_, err := cache.GetUserByName(svc.ctx, req.Username)
+	if err == nil {
+		return errno.UserAlreadyExistErr
+	}
+
 	u, err := dal.QueryUserByName(svc.ctx, req.Username)
 	if err != nil {
 		return err
@@ -36,8 +41,15 @@ func (svc *UserService) Register(req *user.UserRegisterReq) error {
 
 	hashed, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
-		return errno.ErrInternalError.WithMessage("generate hashed password failed")
+		return errno.InternalError("generate password failed")
 	}
+
+	_ = cache.SetUserByName(svc.ctx, req.Username, common.User{
+		ID:        u.ID,
+		Name:      u.Username,
+		Email:     u.Email,
+		Signature: u.Signature,
+	})
 
 	return dal.InsertUser(svc.ctx, model.User{
 		Username: req.Username,
@@ -48,12 +60,12 @@ func (svc *UserService) Register(req *user.UserRegisterReq) error {
 func (svc *UserService) Edit(req *user.UserEditReq) error {
 	uid, _ := svc.c.Get("current_user_id")
 	u, err := dal.QueryUserById(svc.ctx, uid.(int64))
-	if u == (model.User{}) {
-		return errno.UserIsNotExistErr
-	}
 	if err != nil {
 		logger.Warn("Failed to query user by id, error=", err.Error())
 		return err
+	}
+	if u == (model.User{}) {
+		return errno.UserIsNotExistErr
 	}
 
 	u.Email = req.Email

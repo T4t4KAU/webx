@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/T4t4KAU/webx/biz/dal/model"
 	"github.com/T4t4KAU/webx/biz/dal/query"
+	"github.com/T4t4KAU/webx/pkg/errno"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -42,7 +43,13 @@ func VerifyUser(ctx context.Context, username string, password string) (int64, e
 }
 
 func UpdateUser(ctx context.Context, user model.User) error {
-	_, err := query.User.WithContext(ctx).
+	res, err := query.User.WithContext(ctx).
 		Where(query.User.ID.Eq(user.ID)).Updates(user)
-	return err
+	if err != nil {
+		return errno.DatabaseError(err.Error())
+	}
+	if res.RowsAffected <= 0 {
+		return errno.ErrNoRowsAffected
+	}
+	return nil
 }

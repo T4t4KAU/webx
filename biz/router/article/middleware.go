@@ -43,3 +43,8 @@ func _createMw() []app.HandlerFunc {
 	// your code...
 	return nil
 }
+
+func _hideMw() []app.HandlerFunc {
+	// your code...
+	return nil
+}

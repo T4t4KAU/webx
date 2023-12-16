@@ -24,6 +24,7 @@ func NewArticleService(ctx context.Context, c *app.RequestContext) *ArticleServi
 	}
 }
 
+// Create 创建文章
 func (svc *ArticleService) Create(req *article.ArticleCreateReq) error {
 	id, _ := svc.c.Get("current_user_id")
 
@@ -43,6 +44,7 @@ func (svc *ArticleService) Create(req *article.ArticleCreateReq) error {
 	return nil
 }
 
+// Publish 发表文章
 func (svc *ArticleService) Publish(req *article.ArticlePublishReq) error {
 	id, _ := svc.c.Get("current_user_id")
 	ar, err := dal.QueryArticleById(svc.ctx, req.ArticleID)
@@ -63,6 +65,7 @@ func (svc *ArticleService) Publish(req *article.ArticlePublishReq) error {
 	return nil
 }
 
+// Delete 删除文章
 func (svc *ArticleService) Delete(req *article.ArticleDeleteReq) error {
 	id, _ := svc.c.Get("current_user_id")
 	ar, err := dal.QueryArticleById(svc.ctx, req.ArticleID)
@@ -81,6 +84,7 @@ func (svc *ArticleService) Delete(req *article.ArticleDeleteReq) error {
 	return nil
 }
 
+// Edit 编辑文章
 func (svc *ArticleService) Edit(req *article.ArticleEditReq) error {
 	id, _ := svc.c.Get("current_user_id")
 	ar, err := dal.QueryArticleById(svc.ctx, req.ArticleID)
@@ -105,6 +109,7 @@ func (svc *ArticleService) Edit(req *article.ArticleEditReq) error {
 	return nil
 }
 
+// GetInfo 获取文章信息
 func (svc *ArticleService) GetInfo(req *article.ArticleInfoReq) (common.Article, error) {
 	ar, err := dal.QueryArticleById(svc.ctx, req.ArticleID)
 	if err != nil {
@@ -118,4 +123,23 @@ func (svc *ArticleService) GetInfo(req *article.ArticleInfoReq) (common.Article,
 		Title:    ar.Title,
 		Content:  string(ar.Content),
 	}, nil
+}
+
+// Hide 隐藏文章信息
+func (svc *ArticleService) Hide(req *article.ArticleHideReq) error {
+	ar, err := dal.QueryArticleById(svc.ctx, req.ArticleID)
+	if err != nil {
+		return err
+	}
+	if ar == (&model.Article{}) {
+		return errno.ArticleIsNotExistErr
+	}
+
+	ar.Published = false
+	ar.Utime = time.Now().UnixNano()
+	err = dal.UpdateArticleById(svc.ctx, ar)
+	if err != nil {
+		return err
+	}
+	return nil
 }

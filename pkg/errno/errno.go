@@ -17,6 +17,7 @@ const (
 
 	ErrInternalErrorCode
 	ErrDatabaseErrorCode
+	ErrNoRowsAffectedCode
 )
 
 const (
@@ -28,8 +29,9 @@ const (
 	ArticleIsNotExistMsg      = "article is not exist"
 	ArticlePermssionDeniedMsg = "permssion denied"
 
-	InternalErrorMsg = "internal error"
-	DatabaseErrorMsg = "mysql error"
+	InternalErrorMsg  = "internal error"
+	DatabaseErrorMsg  = "database error"
+	NoRowsAffectedMsg = "no rows affected"
 )
 
 type ErrNo struct {
@@ -61,8 +63,9 @@ var (
 	ArticleIsNotExistErr   = NewErrNo(ArticleIsNotExistErrCode, ArticleIsNotExistMsg)
 	ArticlePermssionDenied = NewErrNo(AuthorizationFailedErrCode, ArticlePermssionDeniedMsg)
 
-	ErrInternalError = NewErrNo(ErrInternalErrorCode, InternalErrorMsg)
-	ErrDatabaseError = NewErrNo(ErrDatabaseErrorCode, DatabaseErrorMsg)
+	ErrInternalError  = NewErrNo(ErrInternalErrorCode, InternalErrorMsg)
+	ErrDatabaseError  = NewErrNo(ErrDatabaseErrorCode, DatabaseErrorMsg)
+	ErrNoRowsAffected = NewErrNo(ErrNoRowsAffectedCode, NoRowsAffectedMsg)
 )
 
 // ConvertErr convert error to Errno
@@ -75,4 +78,12 @@ func ConvertErr(err error) ErrNo {
 	s := ServiceErr
 	s.ErrMsg = err.Error()
 	return s
+}
+
+func InternalError(msg string) error {
+	return ErrInternalError.WithMessage(msg)
+}
+
+func DatabaseError(msg string) error {
+	return ErrDatabaseError.WithMessage(msg)
 }

@@ -7,7 +7,8 @@
 1. 使用语言：Go
 2. 使用的框架：Hertz、Kitex、Gorm
 3. 附带完整的代码实现：
-  - https://github.com/T4t4KAU/webx
+  - 一个简单的文章创作平台： https://github.com/T4t4KAU/webx
+  - 其他：(正在开发，敬请期待)
 
 如果对本文有如何的疑问，都可直接邮件联系：microcode1024@gmail.com
 
@@ -973,84 +974,6 @@ func (svc *UserService) Profile(req *user.UserProfileReq) (common.User, error) {
 1. 腾讯云国内短信入门：https://cloud.tencent.com/document/product/382/37745
 2. 微信登录开发指南：https://developers.weixin.qq.com/doc/oplatform/Website_App/WeChat_Login/Wechat_Login.html
 
-## 依赖注入
-
-依赖注入（Dependency Injection，简称 DI）是一种软件设计模式和实现技术，用于解耦组件之间的依赖关系。在依赖注入中，依赖关系的创建和管理被委托给外部的容器，而不是由组件自身负责。
-
-在传统的编程模式中，组件通常直接创建和管理它们所依赖的对象。这样的做法导致了高耦合性，使得组件难以重用、测试和维护。而依赖注入通过将依赖关系的创建和管理从组件中移出，提供了更松散的耦合和更灵活的组件设计。
-
-依赖注入的核心思想是，组件不应该主动创建或获取它们所依赖的对象，而是通过外部的容器将依赖的对象注入到组件中。这样，组件只需关注自身的功能，而不需要关心依赖对象的创建和生命周期管理。
-
-简而言之就是，A依赖于B，A要调用B的方法，那么在A初始化的时候就直接传入一个构造好的B。
-
-## 面向接口
-
-面向接口编程是一种编程范式，它强调程序设计应该基于抽象接口而不是具体实现。在面向接口编程中，程序的组件（类、函数等）通过定义接口来描述其行为和功能，而不是通过具体的实现类来定义。
-
-面向接口编程的主要思想是将程序的依赖关系解耦，提高代码的灵活性、可扩展性和可维护性。通过面向接口编程，可以实现以下优势：
-
-1. 松耦合性：面向接口编程将组件之间的依赖关系限制在接口层面，而不是具体的实现类。这样，组件之间的耦合度降低，可以更容易地替换和扩展组件。
-2. 可替换性：由于组件之间的依赖关系是基于接口而不是具体实现，因此可以轻松地替换一个实现类，而不会影响其他组件的使用。
-3. 可测试性：面向接口编程使得单元测试更加容易，因为可以使用模拟对象或测试替身来替代具体的实现类，从而隔离被测试组件的依赖。
-4. 可扩展性：通过定义接口，可以更容易地添加新的实现类，扩展系统的功能和行为。
-
-采用面向接口编程有着明显的好处，假如要将缓存组件要换成本地内存缓存，只要实现规定的方法就可以无缝替换。
-
-如下是一个简单的面相接口编程的案例：
-
-```go
-package main
-
-import (
-	"fmt"
-)
-
-// Animal 接口定义了动物的行为
-type Animal interface {
-	Speak() string
-}
-
-// Dog 是 Animal 接口的具体实现
-type Dog struct{}
-
-// Speak 是 Dog 的方法实现
-func (d Dog) Speak() string {
-	return "Woof!"
-}
-
-// Cat 是 Animal 接口的具体实现
-type Cat struct{}
-
-// Speak 是 Cat 的方法实现
-func (c Cat) Speak() string {
-	return "Meow!"
-}
-
-func main() {
-	// 创建一个 Animal 类型的切片，包含 Dog 和 Cat 实例
-	animals := []Animal{Dog{}, Cat{}}
-
-	// 遍历切片并调用 Speak 方法
-	for _, animal := range animals {
-		fmt.Println(animal.Speak())
-	}
-}
-```
-
-## 配置模块
-
-配置模块是指用于管理和读取应用程序配置的模块或组件。配置模块通常用于将应用程序的配置信息从代码中分离出来，以便在不修改代码的情况下进行配置的更改。
-
-Viper 是一个 Go 语言的配置管理库，用于读取、解析和管理应用程序的配置。它提供了简单且灵活的方式来处理配置文件、环境变量、命令行参数等不同来源的配置数据。
-
-安装相关库：
-
-```powershell
-go get github.com/spf13/viper
-```
-
-viper使用方法：https://learnku.com/articles/33908
-
 ## 日志模块
 
 日志在开发和运维中有重要的作用，是排查问题和分析程序运行状态的重要工具
@@ -1205,13 +1128,22 @@ func QueryArticleById(ctx context.Context, id int64) (*model.Article, error) {
 定义新的IDL：
 
 ```thrift
+struct Article {
+    1: required i64 id;
+    2: required i64 author_id
+    3: required string title
+    4: required string content
+}
+```
+
+```thrift
 namespace go article
 
 include "common.thrift"
 
 struct ArticleCreateReq {
-    1: required string title,
-    2: required string content,
+    1: required string title
+    2: required string content
     3: required string token
     4: required bool publish
 }
@@ -1242,9 +1174,9 @@ struct ArticleDeleteResp {
 }
 
 struct ArticleEditReq {
-    1: required i64 article_id,
-    2: optional string title,
-    3: optional string content,
+    1: required i64 article_id
+    2: optional string title
+    3: optional string content
     4: required string token
 }
 
@@ -1254,7 +1186,7 @@ struct ArticleEditResp {
 }
 
 struct ArticleInfoReq {
-    1: required i64 article_id,
+    1: required i64 article_id
 }
 
 struct ArticleInfoResp {
@@ -1263,12 +1195,24 @@ struct ArticleInfoResp {
     3: optional common.Article article,
 }
 
+struct ArticleHideReq {
+    1: required i64 article_id
+    2: required string token
+}
+
+struct ArticleHideResp {
+    1: required i32 status_code
+    2: required string status_msg
+}
+
+
 service ArticleService {
     ArticlePublishResp Publish(1: ArticlePublishReq request) (api.post="/article/publish"),
     ArticleDeleteResp Delete(1: ArticleDeleteReq request) (api.post="/article/delete"),
     ArticleEditResp Edit(1: ArticleEditReq request) (api.post="/article/edit"),
     ArticleInfoResp GetInfo(1: ArticleInfoReq request) (api.get="/article/info"),
-    ArticleCreateResp Create(1: ArticleCreateReq request) (api.get="/article/create")
+    ArticleCreateResp Create(1: ArticleCreateReq request) (api.post="/article/create")
+    ArticleHideResp Hide(1: ArticleHideReq request) (api.get="/article/hide")
 }
 ```
 
@@ -1278,9 +1222,9 @@ service ArticleService {
 hz update -idl idl/article.thrift -module github.com/T4t4KAU/webx
 ```
 
-对于一篇全新的文章，用户在创建的时候调用Create接口，这时候会生成一篇文章对应的id以及其他信息，并将数据插入数据库，如果用户创建后没有发表，只是保存的话，那么就设置published为false，如果发表的话就标记为true。如果修改文章的内容，那么就调用Edit接口，将新的内容更新到数据库，如果删除的话就调用Delete接口，如果查询某个文章的信息，那么就调用GetInfo接口。
+对于一篇全新的文章，用户在创建的时候调用Create接口，这时候会生成一篇文章对应的id以及其他信息，并将数据插入数据库，如果用户创建后没有发表，只是保存的话，那么就设置published为false，如果发表的话就标记为true。如果修改文章的内容，那么就调用Edit接口，将新的内容更新到数据库，如果删除的话就调用Delete接口，如果查询某个文章的信息，那么就调用GetInfo接口，如果想要隐藏已经发表的某篇文章可以使用Hide接口。
 
-实现service：
+实现业务逻辑：
 
 ```go
 package service
@@ -1392,6 +1336,50 @@ func (svc *ArticleService) GetInfo(req *article.ArticleInfoReq) (common.Article,
 		Content:  string(ar.Content),
 	}, nil
 }
+
+func (svc *ArticleService) Hide(req *article.ArticleHideReq) error {
+	ar, err := dal.QueryArticleById(svc.ctx, req.ArticleID)
+	if err != nil {
+		return err
+	}
+	if ar == (&model.Article{}) {
+		return errno.ArticleIsNotExistErr
+	}
+
+	ar.Published = false
+	ar.Utime = time.Now().UnixNano()
+	err = dal.UpdateArticleById(svc.ctx, ar)
+	if err != nil {
+		return err
+	}
+	return nil
+}
 ```
 
-这就是初代版本的实现，这里没有考虑使用缓存，现在来尝试优化这些方法
+回过头重新看这个场景，曾经有人说，MySQL不适合存文档，而MongoDB更适合存文档之类的数据。事实上MongoDB确实在读取大型文档时有更好的性能。
+
+详细来说，MongoDB有以下几点特性：
+
+1. 文档数据库：MongoDB是一种文档数据库，使用类似JSON的BSON（二进制JSON）格式来存储数据。它以文档的形式组织数据，每个文档可以有不同的结构，使得数据模型更加灵活。
+2. 无模式设计：MongoDB是一个无模式或动态模式的数据库，不需要预先定义表结构。这意味着可以直接存储不同结构的文档，而无需事先定义模式。
+3. 高性能：MongoDB具有高性能的读写操作，特别是在大规模数据和高并发访问的情况下。它支持水平扩展，可以通过添加更多的节点来提高性能和容量。
+4. 分布式存储：MongoDB支持分布式存储，可以在多个节点上分布数据。这种分布式架构提供了高可用性和容错性，以及负载均衡和故障恢复能力。
+5. 强大的查询功能：MongoDB提供丰富的查询功能，包括灵活的查询语法、索引支持和聚合管道。它支持复杂的查询操作，如范围查询、文本搜索和地理空间查询等。
+6. 支持复制和故障恢复：MongoDB支持数据复制和自动故障恢复。它可以创建主从复制集，将数据复制到多个节点，以提供数据冗余和高可用性。
+7. 内置的分片功能：MongoDB支持数据分片，可以将数据分布到多个分片上。这种分片架构允许处理大量的数据和高并发访问，并提供水平扩展的能力。
+8. 丰富的工具和驱动程序：MongoDB提供了丰富的工具和驱动程序，以便于开发人员使用和管理数据库。它支持多种编程语言的驱动程序，并提供了命令行工具和图形界面工具来管理和监控数据库。
+
+不同于MySQL的是，MongoDB用不着预先定义模型，并且可以很轻松地横向扩展。下面要实现对大量文章的查询，此处可以考虑引入MongoDB来存储文章内容，MySQL用于存储元数据。要安装mongodb同样可以使用docker安装，这里就不作过多赘述了。
+
+同样地，下面也要对文章查询应用缓存，对于文章的作者来说，一般要用到两个接口：
+
+- 列表接口：在自己的创作中心能看到自己发表的所有的文章，这是分页展示的，不可能一次性返回所有数据
+- 详情接口：作者可以查看文章的全部内容
+
+对于读者来说：
+
+- 搜索接口：读者可以搜索文章
+- 推荐接口：当读者打开首页时，系统根据用户喜好来推荐文章
+- 阅读接口：读者选中某篇文章可以查看文章全部内容
+
+当用户拿到一个文章列表，那么很大的概率会访问第一篇文章，可以提前将这部分数据加载到缓存并设置过期时间，对于超长文本就不缓存全部内容了。如果在文章发表的时候就立刻会被访问，也可以提前把文章缓存到Redis。如果缓存空间大小达到阈值，必然要淘汰部分数据，可以用LFU淘汰不怎么被访问的数据，也可以淘汰占用空间比较大的文章，淘汰策略要基于场景进行设计。
